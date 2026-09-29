@@ -13,6 +13,8 @@ import dashboardRoutes from "./dashboard.routes";
 import overdueRoutes from "./overdue.routes";
 import reportsRoutes from "./reports.routes";
 import remindersRoutes from "./reminders.routes";
+import periodsRoutes from "./periods.routes";
+import importRoutes from "./import.routes";
 
 const router = Router();
 
@@ -45,5 +47,7 @@ router.use("/dashboard", requireAuth, dashboardRoutes);
 router.use("/overdue", requireAuth, overdueRoutes);
 router.use("/reports", requireAuth, reportsRoutes);
 router.use("/reminders", requireAuth, remindersRoutes);
+router.use("/periods", requireAuth, periodsRoutes);
+router.use("/import", requireAuth, importRoutes);
 
 export default router;

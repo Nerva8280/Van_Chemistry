@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import prisma from "../config/db";
 import { toNumber } from "../utils/money";
 import { AppError } from "../middleware/errorHandler";
-import { createYearlyPaymentsForStudent } from "../services/tuition.service";
+import { createPaymentsForNewStudent } from "../services/tuition.service";
 import {
   parseStudentsImportFile,
   buildStudentsExportWorkbook,
@@ -12,6 +12,7 @@ import {
 function serializeStudent(student: any) {
   return {
     id: student.id,
+    stt: student.stt ?? null,
     fullName: student.fullName,
     classId: student.classId,
     parentEmail: student.parentEmail,
@@ -23,6 +24,7 @@ function serializeStudent(student: any) {
       ? {
           id: student.class.id,
           name: student.class.name,
+          sheetName: student.class.sheetName ?? null,
           defaultTuitionFee: toNumber(student.class.defaultTuitionFee),
           userId: student.class.userId,
           createdAt: student.class.createdAt,
@@ -89,11 +91,7 @@ export async function createStudent(req: Request, res: Response) {
       include: { class: true },
     });
 
-    await createYearlyPaymentsForStudent(tx, {
-      studentId: created.id,
-      monthlyTuitionFee: fee,
-      year: new Date().getFullYear(),
-    });
+    await createPaymentsForNewStudent(tx, { studentId: created.id, classId, fee });
 
     return created;
   });
@@ -137,10 +135,15 @@ export async function updateStudent(req: Request, res: Response) {
   }
   if (active !== undefined) data.active = Boolean(active);
 
-  const student = await prisma.student.update({
-    where: { id },
-    data,
-    include: { class: true },
+  const student = await prisma.$transaction(async (tx) => {
+    const updated = await tx.student.update({ where: { id }, data, include: { class: true } });
+    if (data.monthlyTuitionFee !== undefined) {
+      await tx.tuitionPayment.updateMany({
+        where: { studentId: id, isPaid: false },
+        data: { expectedAmount: data.monthlyTuitionFee as number },
+      });
+    }
+    return updated;
   });
 
   res.json(serializeStudent(student));
@@ -155,11 +158,7 @@ export async function deleteStudent(req: Request, res: Response) {
     throw new AppError("Không tìm thấy học sinh.", 404);
   }
 
-  await prisma.$transaction([
-    prisma.reminderLog.deleteMany({ where: { studentId: id } }),
-    prisma.tuitionPayment.deleteMany({ where: { studentId: id } }),
-    prisma.student.delete({ where: { id } }),
-  ]);
+  await prisma.student.delete({ where: { id } });
 
   res.status(204).end();
 }
@@ -218,10 +217,10 @@ export async function importStudents(req: Request, res: Response) {
             monthlyTuitionFee: row.monthlyTuitionFee,
           },
         });
-        await createYearlyPaymentsForStudent(tx, {
+        await createPaymentsForNewStudent(tx, {
           studentId: created.id,
-          monthlyTuitionFee: row.monthlyTuitionFee,
-          year: new Date().getFullYear(),
+          classId: targetClassId as string,
+          fee: row.monthlyTuitionFee,
         });
       });
       imported += 1;

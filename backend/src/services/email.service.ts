@@ -45,7 +45,7 @@ function formatDateVN(date: Date): string {
 export interface ReminderEmailParams {
   studentName: string;
   className: string;
-  month: number;
+  periodName: string;
   year: number;
   amount: number;
   dueDate: Date;
@@ -54,10 +54,10 @@ export interface ReminderEmailParams {
 }
 
 function buildEmailContent(params: ReminderEmailParams): { subject: string; html: string } {
-  const { studentName, className, month, year, amount, dueDate, reminderType } = params;
+  const { studentName, className, periodName, year, amount, dueDate, reminderType } = params;
   const amountText = formatCurrencyVND(amount);
   const dueDateText = formatDateVN(dueDate);
-  const periodText = `tháng ${month}/${year}`;
+  const periodText = `${periodName.toLowerCase()}/${year}`;
 
   const baseStyle = `font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: #1f2937; line-height: 1.6;`;
   const wrap = (title: string, bodyHtml: string, color: string) => `

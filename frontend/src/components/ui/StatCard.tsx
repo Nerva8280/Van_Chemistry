@@ -12,7 +12,7 @@ const accentStyles: Record<NonNullable<StatCardProps['accent']>, string> = {
   primary: 'bg-primary-50 text-primary-600',
   success: 'bg-success-50 text-success-700',
   danger: 'bg-danger-50 text-danger-600',
-  warning: 'bg-warning-50 text-warning-600',
+  warning: 'bg-warning-50 text-warning-700',
   slate: 'bg-slate-100 text-slate-600',
 };
 

@@ -53,6 +53,16 @@ const navItems: NavItem[] = [
     ),
   },
   {
+    to: '/import',
+    label: 'Nhập dữ liệu',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <path d="M12 3v12m0 0-4-4m4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
     to: '/overdue',
     label: 'Quá hạn',
     icon: (

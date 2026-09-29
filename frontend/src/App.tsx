@@ -8,6 +8,8 @@ import Classes from './pages/Classes';
 import Students from './pages/Students';
 import Tuition from './pages/Tuition';
 import Overdue from './pages/Overdue';
+import Import from './pages/Import';
+import NotFound from './pages/NotFound';
 
 export default function App() {
   return (
@@ -23,11 +25,11 @@ export default function App() {
               <Route path="/classes" element={<Classes />} />
               <Route path="/students" element={<Students />} />
               <Route path="/tuition" element={<Tuition />} />
+              <Route path="/import" element={<Import />} />
               <Route path="/overdue" element={<Overdue />} />
+              <Route path="*" element={<NotFound />} />
             </Route>
           </Route>
-
-          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

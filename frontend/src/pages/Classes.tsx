@@ -4,6 +4,7 @@ import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Spinner from '../components/ui/Spinner';
 import Alert from '../components/ui/Alert';
 import EmptyState from '../components/ui/EmptyState';
+import PeriodsModal from '../components/classes/PeriodsModal';
 import { classService } from '../services/classService';
 import { getErrorMessage } from '../services/api';
 import { Class } from '../types';
@@ -12,9 +13,10 @@ import { formatCurrency, formatDate } from '../utils/format';
 interface FormState {
   name: string;
   defaultTuitionFee: string;
+  sheetName: string;
 }
 
-const emptyForm: FormState = { name: '', defaultTuitionFee: '' };
+const emptyForm: FormState = { name: '', defaultTuitionFee: '', sheetName: '' };
 
 export default function Classes() {
   const [classes, setClasses] = useState<Class[]>([]);
@@ -30,6 +32,7 @@ export default function Classes() {
 
   const [deleteTarget, setDeleteTarget] = useState<Class | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [periodsClass, setPeriodsClass] = useState<Class | null>(null);
 
   async function loadClasses() {
     setLoading(true);
@@ -58,7 +61,7 @@ export default function Classes() {
 
   function openEdit(cls: Class) {
     setEditing(cls);
-    setForm({ name: cls.name, defaultTuitionFee: String(cls.defaultTuitionFee) });
+    setForm({ name: cls.name, defaultTuitionFee: String(cls.defaultTuitionFee), sheetName: cls.sheetName ?? '' });
     setFormErrors({});
     setFormError('');
     setModalOpen(true);
@@ -83,7 +86,11 @@ export default function Classes() {
     setSaving(true);
     setFormError('');
     try {
-      const payload = { name: form.name.trim(), defaultTuitionFee: Number(form.defaultTuitionFee) };
+      const payload = {
+        name: form.name.trim(),
+        defaultTuitionFee: Number(form.defaultTuitionFee),
+        sheetName: form.sheetName.trim() || null,
+      };
       if (editing) {
         await classService.update(editing.id, payload);
       } else {
@@ -138,7 +145,9 @@ export default function Classes() {
             <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-3">Tên lớp</th>
+                <th className="px-4 py-3">Sheet</th>
                 <th className="px-4 py-3">Số học sinh</th>
+                <th className="px-4 py-3">Số kỳ</th>
                 <th className="px-4 py-3">Học phí mặc định</th>
                 <th className="px-4 py-3">Ngày tạo</th>
                 <th className="px-4 py-3 text-right">Thao tác</th>
@@ -148,11 +157,16 @@ export default function Classes() {
               {classes.map((cls) => (
                 <tr key={cls.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3 font-medium text-slate-800">{cls.name}</td>
+                  <td className="px-4 py-3 text-slate-600">{cls.sheetName || '—'}</td>
                   <td className="px-4 py-3 tabular-nums">{cls.studentCount}</td>
+                  <td className="px-4 py-3 tabular-nums">{cls.periodCount ?? 0}</td>
                   <td className="px-4 py-3 tabular-nums">{formatCurrency(cls.defaultTuitionFee)}</td>
                   <td className="px-4 py-3 text-slate-500">{formatDate(cls.createdAt)}</td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-2">
+                      <button type="button" className="btn-secondary" onClick={() => setPeriodsClass(cls)}>
+                        Kỳ học phí
+                      </button>
                       <button type="button" className="btn-secondary" onClick={() => openEdit(cls)}>
                         Sửa
                       </button>
@@ -180,13 +194,13 @@ export default function Classes() {
               className="input"
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="Ví dụ: Hóa 10A1"
+              placeholder="Ví dụ: Lớp Hóa 12.1"
             />
             {formErrors.name && <p className="mt-1 text-xs text-danger-600">{formErrors.name}</p>}
           </div>
           <div>
             <label className="label" htmlFor="defaultTuitionFee">
-              Học phí mặc định (VNĐ/tháng)
+              Học phí mặc định mỗi kỳ (VNĐ)
             </label>
             <input
               id="defaultTuitionFee"
@@ -200,6 +214,19 @@ export default function Classes() {
             {formErrors.defaultTuitionFee && (
               <p className="mt-1 text-xs text-danger-600">{formErrors.defaultTuitionFee}</p>
             )}
+          </div>
+          <div>
+            <label className="label" htmlFor="sheetName">
+              Sheet (không bắt buộc)
+            </label>
+            <input
+              id="sheetName"
+              className="input"
+              value={form.sheetName}
+              onChange={(e) => setForm((f) => ({ ...f, sheetName: e.target.value }))}
+              placeholder="Ví dụ: Sheet 1"
+            />
+            <p className="mt-1 text-xs text-slate-400">Tên sheet trong file Excel mà lớp này thuộc về, dùng để lọc.</p>
           </div>
           <div className="mt-2 flex justify-end gap-2">
             <button type="button" className="btn-secondary" onClick={() => setModalOpen(false)} disabled={saving}>
@@ -219,6 +246,16 @@ export default function Classes() {
         loading={deleting}
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      <PeriodsModal cls={periodsClass} onClose={() => setPeriodsClass(null)} onChanged={() => {
+          classService
+            .list()
+            .then(setClasses)
+            .catch(() => {
+              // Cập nhật nền số kỳ; lỗi không ảnh hưởng thao tác trong hộp thoại.
+            });
+        }}
       />
     </div>
   );

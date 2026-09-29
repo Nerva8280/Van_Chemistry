@@ -7,6 +7,7 @@ import {
   buildOverdueExportWorkbook,
 } from "../services/excel.service";
 import { computeOverdueList } from "./overdue.controller";
+import { serializePayment, STATUS_LABELS } from "../services/tuition.service";
 
 function resolveYear(req: Request): number {
   const y = parseInt((req.query.year as string) ?? "", 10);
@@ -51,21 +52,31 @@ export async function exportTuitionSummaryReport(req: Request, res: Response) {
 
   const students = await prisma.student.findMany({
     where: { class: { userId } },
-    include: { class: true, payments: { where: { year } } },
-    orderBy: { fullName: "asc" },
+    include: { class: true, payments: { where: { period: { year } }, include: { period: true } } },
+    orderBy: [{ class: { createdAt: "asc" } }, { stt: "asc" }, { fullName: "asc" }],
   });
+  const now = new Date();
+  const months = [...new Set(students.flatMap((s) => s.payments.map((p) => p.period.month)))].sort((a, b) => a - b);
 
   const buffer = buildTuitionSummaryExportWorkbook(
     year,
+    months,
     students.map((s) => ({
+      stt: s.stt,
       fullName: s.fullName,
       className: s.class.name,
-      monthlyTuitionFee: toNumber(s.monthlyTuitionFee),
-      payments: s.payments.map((p) => ({
-        month: p.month,
-        isPaid: p.isPaid,
-        amount: toNumber(p.amount),
-      })),
+      sheetName: s.class.sheetName,
+      fee: toNumber(s.monthlyTuitionFee),
+      payments: s.payments.map((p) => {
+        const sp = serializePayment(p, now);
+        return {
+          month: sp.month,
+          expectedAmount: sp.expectedAmount,
+          paidAmount: sp.paidAmount,
+          isPaid: sp.isPaid,
+          statusLabel: STATUS_LABELS[sp.status],
+        };
+      }),
     }))
   );
 

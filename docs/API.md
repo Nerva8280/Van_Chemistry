@@ -1,74 +1,33 @@
-# Thiết kế REST API
+# Thiết kế REST API (tóm tắt)
 
-Base URL: `${BACKEND_URL}/api` (mặc định `http://localhost:4000/api`)
+Base URL: `/api` (trên production: `https://van-chemistry.vercel.app/api`, Vercel chuyển tiếp sang backend Render).
+Xác thực bằng cookie phiên; mọi nhóm trừ `Auth` và `health`/`cron` cần đăng nhập (nếu không: `401`).
+Chi tiết dữ liệu trả về và luật nghiệp vụ: [CONTRACT.md](CONTRACT.md).
 
-Xác thực: session cookie (httpOnly). Mọi endpoint bên dưới (trừ nhóm `Auth`) yêu cầu đã đăng nhập, nếu không trả về `401 { error: "Unauthorized" }`.
-
-## Auth
-
-| Method | Path | Mô tả |
-|---|---|---|
-| GET | `/auth/google` | Bắt đầu luồng OAuth Google |
-| GET | `/auth/google/callback` | Callback Google, tạo session, redirect về frontend |
-| GET | `/auth/microsoft` | Bắt đầu luồng OAuth Microsoft |
-| GET | `/auth/microsoft/callback` | Callback Microsoft, tạo session, redirect về frontend |
-| GET | `/auth/me` | `{ user: User \| null }` |
-| POST | `/auth/logout` | Hủy session |
-
-## Lớp học (Classes)
-
-| Method | Path | Body | Response |
+| Nhóm | Method | Path | Mô tả |
 |---|---|---|---|
-| GET | `/classes` | — | `Class[]` (kèm `studentCount`) |
-| POST | `/classes` | `{ name, defaultTuitionFee }` | `Class` |
-| PUT | `/classes/:id` | `{ name?, defaultTuitionFee? }` | `Class` |
-| DELETE | `/classes/:id` | — | `204` |
-
-## Học sinh (Students)
-
-| Method | Path | Body / Query | Response |
-|---|---|---|---|
-| GET | `/students?classId=&search=` | — | `Student[]` |
-| POST | `/students` | `{ fullName, classId, parentEmail?, parentPhone?, monthlyTuitionFee }` | `Student` |
-| PUT | `/students/:id` | các field trên (optional) | `Student` |
-| DELETE | `/students/:id` | — | `204` |
-| POST | `/students/import` | multipart `file` (.xlsx/.csv) | `{ imported, errors: {row, message}[] }` |
-| GET | `/students/export?classId=` | — | file `.xlsx` |
-
-Cột Excel/CSV khi import (tiêu đề tiếng Việt): `Họ và tên`, `Lớp`, `Email phụ huynh`, `Số điện thoại`, `Học phí`.
-
-## Học phí (Tuition grid)
-
-| Method | Path | Body / Query | Response |
-|---|---|---|---|
-| GET | `/tuition?year=&classId=` | — | `{ students: [{ id, fullName, className, monthlyTuitionFee, payments: [{month, isPaid, paidDate, dueDate}] }] }` |
-| PUT | `/tuition/:studentId/:year/:month` | `{ isPaid: boolean }` | `TuitionPayment` cập nhật |
-
-## Bảng điều khiển (Dashboard)
-
-| Method | Path | Response |
-|---|---|---|
-| GET | `/dashboard/summary?year=` | `{ totalClasses, totalStudents, totalExpected, totalCollected, totalOutstanding, completionRate, overdueStudentCount }` |
-| GET | `/dashboard/charts?year=` | `{ monthlyRevenue, classCollectionRate, paidVsUnpaid, revenueTrend }` |
-
-## Quá hạn (Overdue)
-
-| Method | Path | Response |
-|---|---|---|
-| GET | `/overdue?year=` | `{ studentName, className, month, daysLate, amount, severity }[]` |
-
-## Báo cáo (Reports)
-
-| Method | Path | Response |
-|---|---|---|
-| GET | `/reports/students/export` | file `.xlsx` danh sách học sinh |
-| GET | `/reports/tuition-summary/export?year=` | file `.xlsx` tổng hợp học phí |
-| GET | `/reports/overdue/export?year=` | file `.xlsx` danh sách quá hạn |
-
-## Nhắc nhở (Reminders)
-
-| Method | Path | Response |
-|---|---|---|
-| POST | `/reminders/run-now` | `{ sent: number }` — chạy thủ công tác vụ nhắc nhở (dùng để kiểm thử) |
-
-Chi tiết đầy đủ, cấu trúc dữ liệu và luật nghiệp vụ: xem [CONTRACT.md](CONTRACT.md).
+| Auth | GET | `/auth/google`, `/auth/microsoft` | Bắt đầu đăng nhập |
+| Auth | GET | `/auth/me` | Người dùng hiện tại |
+| Auth | POST | `/auth/logout` | Đăng xuất |
+| Lớp | GET/POST | `/classes` | Danh sách / tạo lớp |
+| Lớp | PUT/DELETE | `/classes/:id` | Sửa / xóa lớp |
+| Kỳ học phí | GET/POST | `/classes/:id/periods` | Danh sách / tạo kỳ của lớp |
+| Kỳ học phí | POST | `/classes/:id/periods/generate` | Tạo nhanh 12 kỳ theo tháng |
+| Kỳ học phí | PUT/DELETE | `/periods/:id` | Sửa / xóa kỳ |
+| Học sinh | GET/POST | `/students` | Danh sách (lọc lớp, tìm tên) / thêm |
+| Học sinh | PUT/DELETE | `/students/:id` | Sửa / xóa |
+| Học sinh | POST | `/students/import` | Nhập danh sách học sinh |
+| Học sinh | GET | `/students/export` | Xuất danh sách học sinh |
+| Học phí | GET | `/tuition` | Bảng học phí (lọc năm, tháng, sheet, lớp, trạng thái, tên) |
+| Học phí | PATCH | `/tuition/payments/:id` | Tick / bỏ tick / ghi số tiền / ghi chú |
+| Học phí | POST | `/tuition/payments/bulk-paid` | Đánh dấu nhiều khoản đã đóng |
+| Học phí | POST | `/tuition/payments` | Thêm học sinh vào một kỳ |
+| Học phí | DELETE | `/tuition/payments/:id` | Bỏ học sinh khỏi một kỳ |
+| Dashboard | GET | `/dashboard` | Số liệu tổng hợp, biểu đồ, danh sách chưa đóng |
+| Quá hạn | GET | `/overdue` | Danh sách khoản quá hạn |
+| Nhập dữ liệu | GET | `/import/tuition/template` | Tải file mẫu |
+| Nhập dữ liệu | POST | `/import/tuition` | Xem trước hoặc nhập file học phí (`commit=true`) |
+| Báo cáo | GET | `/reports/students/export`, `/reports/tuition-summary/export`, `/reports/overdue/export` | Xuất Excel |
+| Nhắc nhở | POST | `/reminders/run-now` | Chạy gửi email nhắc ngay |
+| Hệ thống | POST | `/cron/reminders` | Dịch vụ hẹn giờ gọi hằng ngày (header `x-cron-secret`) |
+| Hệ thống | GET | `/health` | Kiểm tra server còn sống |

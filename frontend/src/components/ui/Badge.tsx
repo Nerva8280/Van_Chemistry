@@ -6,7 +6,7 @@ interface BadgeProps {
 }
 
 const colorStyles: Record<NonNullable<BadgeProps['color']>, string> = {
-  orange: 'bg-warning-50 text-warning-600 ring-warning-100',
+  orange: 'bg-warning-50 text-warning-700 ring-warning-100',
   red: 'bg-danger-50 text-danger-600 ring-danger-100',
   green: 'bg-success-50 text-success-700 ring-success-100',
   slate: 'bg-slate-100 text-slate-600 ring-slate-200',

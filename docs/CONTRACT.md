@@ -1,187 +1,146 @@
-# Contract: Hệ thống Quản lý Học phí — Backend/Frontend API & DB Contract
+# Contract v2: Hệ thống Quản lý Học phí — API & dữ liệu
 
-This is the single source of truth both the backend and frontend implementations must follow exactly, so they integrate without further coordination. Do not deviate from field names, routes, or types below.
+Nguồn sự thật cho backend và frontend. Mọi response là JSON; lỗi trả về `{ error: string }` (tiếng Việt).
+Base URL phía frontend: `/api` (Vercel rewrite `/api/*` sang backend Render, nên cookie phiên là first-party).
+Tiền là số nguyên VNĐ (đồng). Ngày là chuỗi ISO; frontend hiển thị `dd/MM/yyyy`.
 
-## 1. Tech stack
+## 1. Khái niệm
 
-- Backend: Node.js + Express + TypeScript, Prisma ORM, PostgreSQL, Passport.js (Google OAuth20 + Microsoft/azure-ad), express-session with connect-pg-simple (or JWT — see Auth section), Nodemailer, `xlsx` (SheetJS), `node-cron`.
-- Frontend: React 18 + TypeScript + Vite, TailwindCSS, Recharts, React Router v6, axios.
-- Single user system: there is no multi-tenant complexity, but the DB still stores a `User` row representing whoever logs in (first login auto-registers). All classes/students belong to that logged-in user via `userId` FK — this keeps the schema correct even though in practice only one person uses it.
+- **Lớp (Class)**: có `sheetName` (sheet nguồn khi nhập Excel, có thể null) và `defaultTuitionFee`.
+- **Kỳ học phí (TuitionPeriod)**: thuộc một lớp, ví dụ "Tháng 7 (15/6-14/7)". Có `name` ("Tháng 7"), `year`, `month`
+  (1-12, để xếp cột thẳng hàng giữa các lớp), `startDate`, `endDate` (có thể null), `dueDate` (hạn đóng).
+  Mỗi lớp có tối đa một kỳ cho mỗi (year, month).
+- **Khoản học phí (TuitionPayment)**: một học sinh trong một kỳ. `expectedAmount` (học phí dự kiến), `paidAmount`
+  (số đã đóng), `isPaid`, `paidDate` (null = không rõ ngày/chưa đóng), `note`.
+  **Không có bản ghi = học sinh không học kỳ đó** (hiển thị "—").
+- **Trạng thái** (`status`), backend tính sẵn:
+  - `paid` — Đã đóng (xanh lá)
+  - `partial` — Đóng một phần: chưa `isPaid` nhưng `paidAmount > 0` (cam)
+  - `overdue` — Quá hạn: `paidAmount = 0`, chưa đóng, `dueDate` < hôm nay (đỏ)
+  - `unpaid` — Chưa đóng, chưa tới hạn (xám)
 
-## 2. Database schema (Prisma) — `backend/prisma/schema.prisma`
+## 2. Auth (không đổi)
 
-```prisma
-model User {
-  id          String   @id @default(uuid())
-  email       String   @unique
-  name        String
-  avatarUrl   String?
-  provider    String   // "google" | "microsoft"
-  providerId  String
-  createdAt   DateTime @default(now())
-  classes     Class[]
-}
+`GET /api/auth/google`, `GET /api/auth/microsoft` (điều hướng toàn trang), `GET /api/auth/me` → `{ user }`,
+`POST /api/auth/logout`. Mọi route khác cần đăng nhập, nếu không trả `401`.
 
-model Class {
-  id                String    @id @default(uuid())
-  name              String
-  defaultTuitionFee Decimal   @db.Decimal(12, 0)
-  userId            String
-  user              User      @relation(fields: [userId], references: [id])
-  students          Student[]
-  createdAt         DateTime  @default(now())
-}
+## 3. Lớp học
 
-model Student {
-  id                 String           @id @default(uuid())
-  fullName           String
-  classId            String
-  class              Class            @relation(fields: [classId], references: [id])
-  parentEmail        String?
-  parentPhone        String?
-  monthlyTuitionFee  Decimal          @db.Decimal(12, 0)
-  active             Boolean          @default(true)
-  createdAt          DateTime         @default(now())
-  payments           TuitionPayment[]
-  reminders          ReminderLog[]
-}
+- `GET /api/classes` → `Class[]`
+  `Class = { id, name, sheetName: string|null, defaultTuitionFee, userId, createdAt, studentCount, periodCount }`
+- `POST /api/classes` body `{ name, defaultTuitionFee, sheetName? }` → `Class`
+- `PUT /api/classes/:id` body `{ name?, defaultTuitionFee?, sheetName? }` → `Class`
+- `DELETE /api/classes/:id` → `204`; `409` nếu lớp còn học sinh.
 
-model TuitionPayment {
-  id         String    @id @default(uuid())
-  studentId  String
-  student    Student   @relation(fields: [studentId], references: [id])
-  year       Int
-  month      Int       // 1-12
-  isPaid     Boolean   @default(false)
-  paidDate   DateTime?
-  amount     Decimal   @db.Decimal(12, 0)
-  dueDate    DateTime  // e.g. day 5 of that month
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+## 4. Kỳ học phí
 
-  @@unique([studentId, year, month])
-}
+`Period = { id, classId, name, year, month, startDate: string|null, endDate: string|null, dueDate }`
 
-model ReminderLog {
-  id           String   @id @default(uuid())
-  studentId    String
-  student      Student  @relation(fields: [studentId], references: [id])
-  year         Int
-  month        Int
-  reminderType String   // "due" | "overdue7" | "overdue15"
-  sentAt       DateTime @default(now())
+- `GET /api/classes/:id/periods` → `Period[]`
+- `POST /api/classes/:id/periods` body `{ name, year, month, startDate?, endDate?, dueDate? }` → `Period`
+  (dueDate mặc định = endDate). Tự tạo khoản học phí (chưa đóng) cho mọi học sinh đang học của lớp. `409` nếu trùng tháng.
+- `POST /api/classes/:id/periods/generate` body `{ year, dueDay? }` → `{ created: number, periods: Period[] }`
+  Tạo các kỳ "Tháng 1".."Tháng 12" còn thiếu của năm đó (dueDay 1-28, mặc định 5).
+- `PUT /api/periods/:id` body `{ name?, year?, month?, startDate?, endDate?, dueDate? }` → `Period`
+- `DELETE /api/periods/:id` → `204` (xóa luôn các khoản học phí của kỳ).
 
-  @@unique([studentId, year, month, reminderType])
-}
-```
+## 5. Học sinh
 
-Payment due day default: the 5th of each month (configurable via `TUITION_DUE_DAY` env var, default `5`).
+`Student = { id, stt: number|null, fullName, classId, parentEmail, parentPhone, monthlyTuitionFee, active, createdAt, class? }`
+(`monthlyTuitionFee` = học phí dự kiến mỗi kỳ; hiển thị là "Học phí mỗi kỳ".)
 
-## 3. Auth strategy
-
-Use **session-based auth** with `express-session` (store: `connect-pg-simple` pointing at the same Postgres DB) + Passport strategies:
-- `passport-google-oauth20`
-- `passport-microsoft` (or `passport-azure-ad` OIDC strategy) — use `passport-microsoft` package for simplicity (common/consumers tenant).
-
-Routes:
-- `GET /api/auth/google` → redirect to Google consent
-- `GET /api/auth/google/callback` → on success, create/find `User`, establish session, redirect to `FRONTEND_URL/dashboard`
-- `GET /api/auth/microsoft` → redirect to Microsoft consent
-- `GET /api/auth/microsoft/callback` → same as above
-- `GET /api/auth/me` → `{ user: User | null }`
-- `POST /api/auth/logout` → destroy session
-
-Middleware `requireAuth` protects all `/api/*` routes except `/api/auth/*`. Frontend sends `withCredentials: true` on axios; backend CORS config: `origin: FRONTEND_URL, credentials: true`.
-
-## 4. REST API
-
-All responses JSON. Errors: `{ error: string }` with appropriate HTTP status.
-
-### Classes
-- `GET /api/classes` → `Class[]` (each with `studentCount`)
-- `POST /api/classes` body `{ name, defaultTuitionFee }` → `Class`
-- `PUT /api/classes/:id` body `{ name?, defaultTuitionFee? }` → `Class`
-- `DELETE /api/classes/:id` → `204`
-
-### Students
-- `GET /api/students?classId=&search=` → `Student[]` (includes `class` relation)
-- `POST /api/students` body `{ fullName, classId, parentEmail?, parentPhone?, monthlyTuitionFee }` → `Student` (also creates 12 `TuitionPayment` rows for the current year, unpaid)
-- `PUT /api/students/:id` → `Student`
+- `GET /api/students?classId=&search=` → `Student[]`
+- `POST /api/students` body `{ fullName, classId, parentEmail?, parentPhone?, monthlyTuitionFee }` → `Student`
+  (tự tạo khoản học phí cho các kỳ hiện tại và sắp tới của lớp).
+- `PUT /api/students/:id` → `Student` (đổi học phí sẽ cập nhật `expectedAmount` các khoản chưa đóng xong)
 - `DELETE /api/students/:id` → `204`
-- `POST /api/students/import` multipart file `file` (.xlsx/.csv), body field `classId` optional → `{ imported: number, errors: {row:number, message:string}[] }`. Columns expected (Vietnamese headers): `Họ và tên`, `Lớp`, `Email phụ huynh`, `Số điện thoại`, `Học phí`.
-- `GET /api/students/export?classId=` → streams .xlsx file
+- `POST /api/students/import` (multipart `file`, danh sách học sinh) → `{ imported, errors: {row, message}[] }`
+- `GET /api/students/export?classId=` → file .xlsx
 
-### Tuition grid
-- `GET /api/tuition?year=2026&classId=` → `{ students: { id, fullName, className, monthlyTuitionFee, payments: { month: 1..12, isPaid, paidDate, dueDate }[] }[] }`
-- `PUT /api/tuition/:studentId/:year/:month` body `{ isPaid: boolean }` → updates/creates the `TuitionPayment` row; when `isPaid` flips true, sets `paidDate = now()`; when false, clears `paidDate`. Returns updated `TuitionPayment`.
+## 6. Bảng học phí
 
-### Dashboard
-- `GET /api/dashboard/summary?year=2026` → `{ totalClasses, totalStudents, totalExpected, totalCollected, totalOutstanding, completionRate, overdueStudentCount }`
-- `GET /api/dashboard/charts?year=2026` → `{ monthlyRevenue: {month, expected, collected}[], classCollectionRate: {className, rate}[], paidVsUnpaid: {paid, unpaid}, revenueTrend: {month, revenue}[] }`
-
-### Overdue
-- `GET /api/overdue?year=2026` → `{ studentName, className, month, daysLate, amount, severity: "orange"|"red" }[]`
-  - `daysLate` = today − dueDate(month) in days, only if unpaid and dueDate < today.
-  - severity: `orange` if `daysLate <= 15`, else `red`.
-
-### Reports / export
-- `GET /api/reports/students/export` → xlsx of student list
-- `GET /api/reports/tuition-summary/export?year=` → xlsx summary per student/month
-- `GET /api/reports/overdue/export?year=` → xlsx of overdue list
-
-### Reminders
-- `POST /api/reminders/run-now` (manual trigger, for testing) → `{ sent: number }`
-- Cron job (`node-cron`, runs daily at 08:00 server time) checks all unpaid `TuitionPayment` rows where `dueDate` matches today, +7 days ago, or +15 days ago, sends Vietnamese email via Nodemailer/Gmail SMTP to `parentEmail`, logs to `ReminderLog` (unique constraint prevents duplicate sends).
-
-## 5. Env vars (`backend/.env.example`)
+`GET /api/tuition?year=&month=&classId=&sheet=&status=&search=`
+(`status` ∈ paid|partial|overdue|unpaid; mặc định `year` = năm mới nhất có dữ liệu)
 
 ```
-PORT=4000
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/tuition_db
-SESSION_SECRET=change_me
-FRONTEND_URL=http://localhost:5173
-BACKEND_URL=http://localhost:4000
-
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-
-MICROSOFT_CLIENT_ID=
-MICROSOFT_CLIENT_SECRET=
-
-GMAIL_USER=
-GMAIL_APP_PASSWORD=
-
-TUITION_DUE_DAY=5
+{
+  year: number,
+  years: number[],              // các năm có dữ liệu, mới nhất trước
+  sheets: string[],             // các sheetName đang có
+  columns: { year, month }[],   // các cột tháng, tăng dần
+  classes: { id, name, sheetName, periods: Period[] }[],
+  students: {
+    id, stt, fullName, classId, monthlyTuitionFee, active,
+    payments: Payment[]
+  }[]
+}
+Payment = { id, studentId, periodId, year, month, expectedAmount, paidAmount, isPaid,
+            paidDate: string|null, note: string|null, status, updatedAt }
 ```
+Một ô (học sinh, cột): tìm `payment` có cùng year/month. Nếu không có mà lớp của học sinh có kỳ tháng đó → "—"
+(không học, có thể thêm). Nếu lớp không có kỳ tháng đó → ô trống, không thao tác.
+Khi lọc `status`, chỉ trả về học sinh có ít nhất một khoản đúng trạng thái đó.
 
-Frontend `.env.example`:
+- `PATCH /api/tuition/payments/:id` body (một trong các dạng) → `Payment`
+  - `{ isPaid: true }` — đánh dấu đã đóng đủ: `paidAmount = expectedAmount`, `paidDate` = ngày cũ hoặc hôm nay
+  - `{ isPaid: false }` — bỏ đánh dấu: `paidAmount = 0`, `paidDate = null`
+  - `{ paidAmount, paidDate?, isPaid? }` — ghi số tiền; `isPaid` tự bằng `paidAmount >= expectedAmount`,
+    trừ khi gửi `isPaid: true` để xác nhận hoàn tất dù chưa đủ tiền
+  - `{ note }`
+- `POST /api/tuition/payments/bulk-paid` body `{ paymentIds: string[] }` → `{ updated: Payment[] }`
+- `POST /api/tuition/payments` body `{ studentId, periodId }` → `Payment` (thêm học sinh vào một kỳ, ô "—")
+- `DELETE /api/tuition/payments/:id` → `204` (bỏ học sinh khỏi kỳ, ô thành "—")
+
+## 7. Dashboard
+
+`GET /api/dashboard?year=&month=&classId=&sheet=`
+Khi có `month`, các tổng trong `summary` chỉ tính riêng tháng đó; không có thì tính cả năm.
 ```
-VITE_API_URL=http://localhost:4000/api
+{
+  year, years: number[], months: number[], selectedMonth: number|null,
+  summary: { totalClasses, totalStudents, totalExpected, totalCollected, totalOutstanding,
+             completionRate /* 0..1 */, averageFeePerStudent, overdueStudentCount },
+  monthStats: { paid, partial, overdue, unpaid },   // số học sinh theo trạng thái trong selectedMonth
+  byMonth: { month, label, expected, collected }[],
+  byClass: { className, expected, collected, rate /* 0..1 */ }[],
+  unpaidList: { paymentId, studentId, studentName, className, periodName, month, dueDate,
+                expectedAmount, paidAmount, remaining, status }[]   // selectedMonth, trạng thái khác paid
+}
 ```
+Nếu không truyền `month`, `selectedMonth` = tháng mới nhất đã bắt đầu.
 
-## 6. Frontend routes/pages
+## 8. Quá hạn
 
-- `/login` — Vietnamese login page, "Đăng nhập với Google" / "Đăng nhập với Microsoft" buttons (redirect to backend OAuth routes).
-- `/` (protected, redirects to `/dashboard`)
-- `/dashboard` — summary cards + 4 charts (Recharts): doanh thu theo tháng (bar), tỷ lệ thu theo lớp (bar/pie), đã đóng/chưa đóng (pie), xu hướng doanh thu (line).
-- `/classes` — CRUD list of classes.
-- `/students` — CRUD table, search box, import/export buttons, filter by class.
-- `/tuition` — the year checkbox grid (Student | T1..T12), year selector, class filter, overdue rows highlighted red per rules.
-- `/overdue` — overdue table with color badges.
+`GET /api/overdue?year=` →
+`{ paymentId, studentId, studentName, className, periodName, year, month, dueDate, daysLate, expectedAmount, paidAmount, remaining, severity: "orange"|"red" }[]`
+(orange: trễ ≤ 15 ngày; red: > 15 ngày; gồm cả khoản đóng một phần đã quá hạn).
 
-Shared `AuthContext` fetches `/api/auth/me` on load; `ProtectedRoute` wrapper redirects to `/login` if no user.
+## 9. Nhập dữ liệu học phí (Excel dạng bảng ngang)
 
-All UI text in Vietnamese, currency formatted via `Intl.NumberFormat('vi-VN', {style:'currency', currency:'VND'})`, dates via `date-fns` format `dd/MM/yyyy`.
-
-## 7. Folder structure (already created)
+- `GET /api/import/tuition/template` → file mẫu .xlsx
+- `POST /api/import/tuition` multipart: `file`, `year`, `unit` ("1000" = số trong file là nghìn đồng, "1" = đồng),
+  `commit` ("true" để ghi vào DB; mặc định chỉ xem trước)
+  → `{ committed: boolean, preview: Preview, imported?: { classesCreated, studentsCreated, studentsUpdated, payments } }`
 
 ```
-backend/
-  prisma/schema.prisma
-  src/config/  src/middleware/  src/routes/  src/controllers/  src/services/  src/jobs/  src/utils/
-  src/app.ts  src/server.ts
-frontend/
-  src/pages/ src/components/ src/context/ src/services/ src/types/ src/hooks/
-  src/App.tsx src/main.tsx
-docs/
+Preview = {
+  year, unit,
+  sheets: { name, classes: string[], studentCount }[],
+  classes: { name, sheetName, exists, defaultFee, studentCount,
+             periods: { name, header, year, month, startDate, endDate, dueDate,
+                        enrolled, paid, partial, unpaid, collected }[] }[],
+  totals: { sheet, label, computed, manual: number|null, match: boolean|null }[],
+  studentCount, paymentCount,
+  warnings: { type, sheet, row?, message }[]
+}
 ```
+`type` ∈ missing_header, invalid_period, duplicate_stt, duplicate_name, similar_name, unusual_name, total_mismatch,
+total_match, total_unassigned, zero_value, blank_cell, partial_payment, overpaid, invalid_value, stray_row.
+Nhập lại cùng file sẽ cập nhật (không nhân đôi): lớp, kỳ, học sinh được so khớp theo tên.
+
+## 10. Báo cáo & khác
+
+- `GET /api/reports/students/export`, `GET /api/reports/tuition-summary/export?year=`, `GET /api/reports/overdue/export?year=` → .xlsx
+- `POST /api/reminders/run-now` → `{ sent }`
+- `POST /api/cron/reminders` (header `x-cron-secret`) → `{ sent }` — cho dịch vụ hẹn giờ bên ngoài
+- `GET /api/health` → `{ ok: true }`

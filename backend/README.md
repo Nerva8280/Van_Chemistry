@@ -56,15 +56,9 @@ npm run prisma:generate
 npm run prisma:migrate -- --name init
 ```
 
-Lệnh `prisma:migrate` sẽ tạo các bảng `User`, `Class`, `Student`, `TuitionPayment`, `ReminderLog` theo `prisma/schema.prisma`. Bảng `session` (dùng cho `connect-pg-simple`) được tự động tạo khi server khởi động lần đầu (`createTableIfMissing: true`).
+Lệnh `prisma:migrate` sẽ tạo các bảng `User`, `Class`, `Student`, `TuitionPeriod`, `TuitionPayment`, `ReminderLog` theo `prisma/schema.prisma`. Bảng `session` (dùng cho `connect-pg-simple`) được tự động tạo khi server khởi động lần đầu (`createTableIfMissing: true`).
 
-Nếu muốn có sẵn dữ liệu mẫu để dùng thử ngay:
-
-```bash
-npm run db:seed
-```
-
-(Script này tạo 1 giáo viên demo, 2 lớp học và vài học sinh mẫu kèm 12 tháng học phí năm hiện tại.)
+Dữ liệu học phí được nạp qua trang "Nhập dữ liệu" trên giao diện (file Excel dạng bảng ngang, có file mẫu tải về ngay trên trang đó).
 
 Nếu bạn muốn xem/áp dụng script SQL thuần (không qua Prisma), tham khảo `docs/DATABASE.sql` ở thư mục gốc dự án.
 
@@ -150,14 +144,12 @@ npm start
 | `npm run prisma:generate` | Sinh Prisma Client                                |
 | `npm run prisma:migrate`  | Tạo & áp dụng migration (dev)                     |
 | `npm run prisma:deploy`   | Áp dụng migration (production)                    |
-| `npm run db:seed`        | Seed dữ liệu mẫu                                   |
 
 ## 11. Cấu trúc thư mục
 
 ```
 backend/
   prisma/schema.prisma      # Định nghĩa DB schema
-  prisma/seed.ts            # Seed dữ liệu mẫu
   src/config/                # env, db (Prisma client), session, passport
   src/middleware/             # requireAuth, errorHandler, upload (multer)
   src/routes/                 # Express routers theo từng domain

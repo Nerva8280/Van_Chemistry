@@ -5,4 +5,6 @@ build/
 .env.local
 *.log
 .DS_Store
+# Real student data must never reach the public repo.
+du-lieu/
 Thumbs.db

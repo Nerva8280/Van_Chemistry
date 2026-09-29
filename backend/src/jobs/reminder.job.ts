@@ -21,7 +21,7 @@ export function resolveReminderType(dueDate: Date, today: Date = new Date()): Re
  * Scans all unpaid TuitionPayment rows (across every user — this is a
  * global background sweep) and sends the appropriate reminder email for
  * rows whose dueDate is exactly today, 7 days ago, or 15 days ago.
- * Uses ReminderLog's unique constraint (studentId, year, month, reminderType)
+ * Uses ReminderLog's unique constraint (paymentId, reminderType)
  * to guarantee each reminder is sent at most once.
  */
 export async function runReminderSweep(): Promise<{ sent: number }> {
@@ -29,13 +29,15 @@ export async function runReminderSweep(): Promise<{ sent: number }> {
 
   const candidates = await prisma.tuitionPayment.findMany({
     where: { isPaid: false },
-    include: { student: { include: { class: true } } },
+    include: { student: { include: { class: true } }, period: true },
   });
 
   let sent = 0;
 
   for (const payment of candidates) {
-    const reminderType = resolveReminderType(payment.dueDate, today);
+    const dueDate = payment.period.dueDate;
+    if (!dueDate) continue;
+    const reminderType = resolveReminderType(dueDate, today);
     if (!reminderType) continue;
 
     const { student } = payment;
@@ -45,16 +47,11 @@ export async function runReminderSweep(): Promise<{ sent: number }> {
       // Reserve the ReminderLog row first (unique constraint guards against
       // duplicate sends, including across concurrent runs of this job).
       await prisma.reminderLog.create({
-        data: {
-          studentId: student.id,
-          year: payment.year,
-          month: payment.month,
-          reminderType,
-        },
+        data: { studentId: student.id, paymentId: payment.id, reminderType },
       });
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-        // Already sent for this (student, year, month, reminderType) — skip.
+        // Already sent for this (payment, reminderType) — skip.
         continue;
       }
       // eslint-disable-next-line no-console
@@ -66,10 +63,10 @@ export async function runReminderSweep(): Promise<{ sent: number }> {
       await sendReminderEmail({
         studentName: student.fullName,
         className: student.class.name,
-        month: payment.month,
-        year: payment.year,
-        amount: Number(payment.amount.toString()),
-        dueDate: payment.dueDate,
+        periodName: payment.period.name,
+        year: payment.period.year,
+        amount: Math.max(Number(payment.expectedAmount.toString()) - Number(payment.paidAmount.toString()), 0),
+        dueDate,
         parentEmail: student.parentEmail,
         reminderType,
       });

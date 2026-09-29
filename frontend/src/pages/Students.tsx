@@ -84,6 +84,10 @@ export default function Students() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classFilter, debouncedSearch]);
 
+  function classOf(student: Student): { name: string; sheetName?: string | null } | undefined {
+    return classes.find((c) => c.id === student.classId) ?? student.class;
+  }
+
   function openCreate() {
     setEditing(null);
     setForm({ ...emptyForm, classId: classes[0]?.id ?? '' });
@@ -252,20 +256,28 @@ export default function Students() {
           <table className="min-w-full divide-y divide-slate-100 text-sm">
             <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
               <tr>
+                <th className="px-4 py-3 text-center">STT</th>
                 <th className="px-4 py-3">Họ và tên</th>
                 <th className="px-4 py-3">Lớp</th>
                 <th className="px-4 py-3">Email phụ huynh</th>
                 <th className="px-4 py-3">SĐT phụ huynh</th>
-                <th className="px-4 py-3">Học phí/tháng</th>
+                <th className="px-4 py-3">Học phí mỗi kỳ</th>
                 <th className="px-4 py-3 text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {students.map((student) => (
                 <tr key={student.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 font-medium text-slate-800">{student.fullName}</td>
+                  <td className="px-4 py-3 text-center tabular-nums text-slate-500">{student.stt ?? '—'}</td>
+                  <td className="px-4 py-3 font-medium text-slate-800">
+                    {student.fullName}
+                    {!student.active && <span className="ml-1 text-xs font-normal text-slate-400">(đã nghỉ)</span>}
+                  </td>
                   <td className="px-4 py-3 text-slate-600">
-                    {student.class?.name ?? classes.find((c) => c.id === student.classId)?.name ?? '—'}
+                    {classOf(student)?.name ?? '—'}
+                    {classOf(student)?.sheetName && (
+                      <span className="block text-xs text-slate-400">{classOf(student)?.sheetName}</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-slate-600">{student.parentEmail || '—'}</td>
                   <td className="px-4 py-3 text-slate-600">{student.parentPhone || '—'}</td>
@@ -347,7 +359,7 @@ export default function Students() {
           </div>
           <div>
             <label className="label" htmlFor="monthlyTuitionFee">
-              Học phí/tháng (VNĐ)
+              Học phí mỗi kỳ (VNĐ)
             </label>
             <input
               id="monthlyTuitionFee"

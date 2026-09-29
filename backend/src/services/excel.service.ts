@@ -160,73 +160,103 @@ export function buildStudentsExportWorkbook(students: StudentExportRow[]): Buffe
 }
 
 export interface TuitionSummaryExportRow {
+  stt: number | null;
   fullName: string;
   className: string;
-  monthlyTuitionFee: number;
-  payments: { month: number; isPaid: boolean; amount: number }[];
+  sheetName: string | null;
+  fee: number;
+  payments: { month: number; expectedAmount: number; paidAmount: number; isPaid: boolean; statusLabel: string }[];
+}
+
+function vnd(n: number): string {
+  return new Intl.NumberFormat("vi-VN").format(n);
 }
 
 export function buildTuitionSummaryExportWorkbook(
   year: number,
+  months: number[],
   students: TuitionSummaryExportRow[]
 ): Buffer {
-  const monthHeaders = Array.from({ length: 12 }, (_, i) => `T${i + 1}`);
-
   const data = students.map((s) => {
     const row: Record<string, unknown> = {
+      STT: s.stt ?? "",
       [HEADER_FULL_NAME]: s.fullName,
       [HEADER_CLASS]: s.className,
-      [HEADER_TUITION_FEE]: s.monthlyTuitionFee,
+      Sheet: s.sheetName ?? "",
+      "Học phí mỗi kỳ": s.fee,
     };
-    for (const monthHeader of monthHeaders) {
-      const monthNum = Number(monthHeader.slice(1));
-      const payment = s.payments.find((p) => p.month === monthNum);
-      row[monthHeader] = payment?.isPaid ? "Đã đóng" : "Chưa đóng";
+    for (const m of months) {
+      const p = s.payments.find((x) => x.month === m);
+      row[`Tháng ${m}`] = !p
+        ? "—"
+        : p.isPaid || p.paidAmount === 0
+          ? p.statusLabel
+          : `Đóng một phần (${vnd(p.paidAmount)}/${vnd(p.expectedAmount)})`;
     }
-    const totalCollected = s.payments.filter((p) => p.isPaid).reduce((sum, p) => sum + p.amount, 0);
-    row["Tổng đã thu"] = totalCollected;
+    const expected = s.payments.reduce((sum, p) => sum + p.expectedAmount, 0);
+    const paid = s.payments.reduce((sum, p) => sum + p.paidAmount, 0);
+    row["Tổng dự kiến"] = expected;
+    row["Tổng đã thu"] = paid;
+    row["Còn thiếu"] = s.payments.reduce((sum, p) => sum + (p.isPaid ? 0 : Math.max(p.expectedAmount - p.paidAmount, 0)), 0);
     return row;
   });
 
   const worksheet = XLSX.utils.json_to_sheet(data);
   worksheet["!cols"] = [
+    { wch: 5 },
     { wch: 24 },
     { wch: 16 },
     { wch: 14 },
-    ...monthHeaders.map(() => ({ wch: 10 })),
+    { wch: 14 },
+    ...months.map(() => ({ wch: 26 })),
+    { wch: 14 },
+    { wch: 14 },
     { wch: 14 },
   ];
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, `Tổng hợp học phí ${year}`);
+  XLSX.utils.book_append_sheet(workbook, worksheet, `Tổng hợp ${year}`);
   return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
 }
 
 export interface OverdueExportRow {
+  paymentId: string;
+  studentId: string;
   studentName: string;
   className: string;
+  periodName: string;
+  year: number;
   month: number;
+  dueDate: Date;
   daysLate: number;
-  amount: number;
+  expectedAmount: number;
+  paidAmount: number;
+  remaining: number;
   severity: "orange" | "red";
+}
+
+function formatDateVN(d: Date): string {
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
 }
 
 export function buildOverdueExportWorkbook(rows: OverdueExportRow[]): Buffer {
   const data = rows.map((r) => ({
     "Học sinh": r.studentName,
     [HEADER_CLASS]: r.className,
-    Tháng: r.month,
+    "Kỳ học phí": `${r.periodName}/${r.year}`,
+    "Hạn đóng": formatDateVN(r.dueDate),
     "Số ngày trễ": r.daysLate,
-    "Số tiền": r.amount,
-    "Mức độ": r.severity === "red" ? "Nghiêm trọng" : "Cảnh báo",
+    "Học phí": r.expectedAmount,
+    "Đã đóng": r.paidAmount,
+    "Còn thiếu": r.remaining,
+    "Mức độ": r.severity === "red" ? "Trễ trên 15 ngày" : "Trễ tối đa 15 ngày",
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(data);
-  worksheet["!cols"] = [{ wch: 24 }, { wch: 16 }, { wch: 8 }, { wch: 12 }, { wch: 14 }, { wch: 14 }];
+  worksheet["!cols"] = [{ wch: 24 }, { wch: 16 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 18 }];
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Danh sách quá hạn");
   return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
 }
-
 export default {
   parseStudentsImportFile,
   buildStudentsExportWorkbook,

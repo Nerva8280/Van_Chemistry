@@ -23,7 +23,7 @@ export interface OverdueComputationResult {
   severity: Severity | null;
 }
 
-function startOfDay(d: Date): Date {
+export function startOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
 }
 

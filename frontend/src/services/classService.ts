@@ -4,6 +4,7 @@ import { Class } from '../types';
 export interface ClassPayload {
   name: string;
   defaultTuitionFee: number;
+  sheetName?: string | null;
 }
 
 export const classService = {

@@ -1,65 +1,55 @@
 import { Request, Response } from "express";
 import prisma from "../config/db";
 import { toNumber } from "../utils/money";
-import { computeOverdue } from "../services/overdue.service";
-import { buildOverdueExportWorkbook } from "../services/excel.service";
+import { computeOverdue, startOfDay } from "../services/overdue.service";
+import { buildOverdueExportWorkbook, OverdueExportRow } from "../services/excel.service";
 
-function resolveYear(req: Request): number {
+function resolveYear(req: Request): number | undefined {
   const y = parseInt((req.query.year as string) ?? "", 10);
-  return Number.isInteger(y) ? y : new Date().getFullYear();
+  return Number.isInteger(y) ? y : undefined;
 }
 
-export async function computeOverdueList(userId: string, year: number) {
+export async function computeOverdueList(userId: string, year?: number): Promise<OverdueExportRow[]> {
+  const now = new Date();
   const payments = await prisma.tuitionPayment.findMany({
-    where: { year, isPaid: false, student: { class: { userId } } },
-    include: { student: { include: { class: true } } },
-    orderBy: [{ dueDate: "asc" }],
+    where: {
+      isPaid: false,
+      student: { class: { userId } },
+      period: { dueDate: { lt: startOfDay(now) }, ...(year ? { year } : {}) },
+    },
+    include: { student: { include: { class: true } }, period: true },
+    orderBy: [{ period: { dueDate: "asc" } }],
   });
 
-  const rows: {
-    studentName: string;
-    className: string;
-    month: number;
-    daysLate: number;
-    amount: number;
-    severity: "orange" | "red";
-  }[] = [];
-
+  const rows: OverdueExportRow[] = [];
   for (const p of payments) {
-    const overdue = computeOverdue({ isPaid: p.isPaid, dueDate: p.dueDate });
+    const dueDate = p.period.dueDate;
+    if (!dueDate) continue;
+    const overdue = computeOverdue({ isPaid: false, dueDate, now });
     if (!overdue.isOverdue || !overdue.severity) continue;
+    const expectedAmount = toNumber(p.expectedAmount);
+    const paidAmount = toNumber(p.paidAmount);
     rows.push({
+      paymentId: p.id,
+      studentId: p.studentId,
       studentName: p.student.fullName,
       className: p.student.class.name,
-      month: p.month,
+      periodName: p.period.name,
+      year: p.period.year,
+      month: p.period.month,
+      dueDate,
       daysLate: overdue.daysLate,
-      amount: toNumber(p.amount),
+      expectedAmount,
+      paidAmount,
+      remaining: Math.max(expectedAmount - paidAmount, 0),
       severity: overdue.severity,
     });
   }
-
   return rows;
 }
 
 export async function getOverdueList(req: Request, res: Response) {
-  const userId = req.user!.id;
-  const year = resolveYear(req);
-  const rows = await computeOverdueList(userId, year);
-  res.json(rows);
+  res.json(await computeOverdueList(req.user!.id, resolveYear(req)));
 }
 
-export async function exportOverdue(req: Request, res: Response) {
-  const userId = req.user!.id;
-  const year = resolveYear(req);
-  const rows = await computeOverdueList(userId, year);
-  const buffer = buildOverdueExportWorkbook(rows);
-
-  res.setHeader(
-    "Content-Type",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-  );
-  res.setHeader("Content-Disposition", 'attachment; filename="danh-sach-qua-han.xlsx"');
-  res.send(buffer);
-}
-
-export default { getOverdueList, exportOverdue, computeOverdueList };
+export default { getOverdueList, computeOverdueList };

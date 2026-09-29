@@ -7,18 +7,28 @@ function serializeClass(cls: any) {
   return {
     id: cls.id,
     name: cls.name,
+    sheetName: cls.sheetName ?? null,
     defaultTuitionFee: toNumber(cls.defaultTuitionFee),
     userId: cls.userId,
     createdAt: cls.createdAt,
-    studentCount: cls._count ? cls._count.students : cls.studentCount ?? undefined,
+    studentCount: cls._count?.students ?? 0,
+    periodCount: cls._count?.periods ?? 0,
   };
+}
+
+const COUNTS = { _count: { select: { students: true, periods: true } } } as const;
+
+function parseSheetName(value: unknown): string | null {
+  if (value === undefined || value === null) return null;
+  const s = String(value).trim();
+  return s ? s.slice(0, 100) : null;
 }
 
 export async function listClasses(req: Request, res: Response) {
   const userId = req.user!.id;
   const classes = await prisma.class.findMany({
     where: { userId },
-    include: { _count: { select: { students: true } } },
+    include: COUNTS,
     orderBy: { createdAt: "asc" },
   });
   res.json(classes.map(serializeClass));
@@ -26,7 +36,7 @@ export async function listClasses(req: Request, res: Response) {
 
 export async function createClass(req: Request, res: Response) {
   const userId = req.user!.id;
-  const { name, defaultTuitionFee } = req.body ?? {};
+  const { name, defaultTuitionFee, sheetName } = req.body ?? {};
 
   if (!name || typeof name !== "string" || !name.trim()) {
     throw new AppError("Tên lớp là bắt buộc.");
@@ -37,8 +47,8 @@ export async function createClass(req: Request, res: Response) {
   }
 
   const cls = await prisma.class.create({
-    data: { name: name.trim(), defaultTuitionFee: fee, userId },
-    include: { _count: { select: { students: true } } },
+    data: { name: name.trim(), defaultTuitionFee: fee, userId, sheetName: parseSheetName(sheetName) },
+    include: COUNTS,
   });
 
   res.status(201).json(serializeClass(cls));
@@ -47,7 +57,7 @@ export async function createClass(req: Request, res: Response) {
 export async function updateClass(req: Request, res: Response) {
   const userId = req.user!.id;
   const { id } = req.params;
-  const { name, defaultTuitionFee } = req.body ?? {};
+  const { name, defaultTuitionFee, sheetName } = req.body ?? {};
 
   const existing = await prisma.class.findFirst({ where: { id, userId } });
   if (!existing) {
@@ -68,11 +78,12 @@ export async function updateClass(req: Request, res: Response) {
     }
     data.defaultTuitionFee = fee;
   }
+  if (sheetName !== undefined) data.sheetName = parseSheetName(sheetName);
 
   const cls = await prisma.class.update({
     where: { id },
     data,
-    include: { _count: { select: { students: true } } },
+    include: COUNTS,
   });
 
   res.json(serializeClass(cls));

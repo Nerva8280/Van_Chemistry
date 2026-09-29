@@ -1,147 +1,118 @@
--- =============================================================================
--- DATABASE.sql
--- Raw SQL migration for "Hệ thống Quản lý Học phí" — mirrors backend/prisma/schema.prisma
--- exactly (models: User, Class, Student, TuitionPayment, ReminderLog), plus the
--- `session` table used by connect-pg-simple for express-session storage.
---
--- Tables are created in dependency order so foreign keys resolve correctly.
--- Safe to run against a fresh PostgreSQL >= 13 database:
---   psql "$DATABASE_URL" -f docs/DATABASE.sql
--- =============================================================================
-
-BEGIN;
-
--- -----------------------------------------------------------------------------
--- Extension needed for gen_random_uuid() (used as default for all id columns,
--- matching Prisma's @default(uuid())). Available via pgcrypto on PG >= 13.
--- -----------------------------------------------------------------------------
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
--- -----------------------------------------------------------------------------
--- User
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS "User" (
-    id           TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-    email        TEXT NOT NULL,
-    name         TEXT NOT NULL,
-    "avatarUrl"  TEXT,
-    provider     TEXT NOT NULL, -- 'google' | 'microsoft'
+-- Hệ thống Quản lý Học phí — script SQL tạo schema (PostgreSQL)
+-- Sinh tự động từ backend/prisma/schema.prisma (prisma migrate diff --from-empty).
+-- Nguồn chính thức vẫn là Prisma migrations trong backend/prisma/migrations; file này để tham khảo/chạy tay.
+-- Bảng "session" do connect-pg-simple tự tạo khi server khởi động (createTableIfMissing).
+-- CreateTable
+CREATE TABLE "User" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "avatarUrl" TEXT,
+    "provider" TEXT NOT NULL,
     "providerId" TEXT NOT NULL,
-    "createdAt"  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "User_email_key" UNIQUE (email)
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
 
--- -----------------------------------------------------------------------------
--- Class
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS "Class" (
-    id                  TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-    name                TEXT NOT NULL,
-    "defaultTuitionFee" DECIMAL(12, 0) NOT NULL,
-    "userId"            TEXT NOT NULL,
-    "createdAt"         TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+-- CreateTable
+CREATE TABLE "Class" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "sheetName" TEXT,
+    "defaultTuitionFee" DECIMAL(12,0) NOT NULL,
+    "userId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "Class_userId_fkey" FOREIGN KEY ("userId")
-        REFERENCES "User" (id) ON DELETE RESTRICT ON UPDATE CASCADE
+    CONSTRAINT "Class_pkey" PRIMARY KEY ("id")
 );
 
-CREATE INDEX IF NOT EXISTS "Class_userId_idx" ON "Class" ("userId");
+-- CreateTable
+CREATE TABLE "Student" (
+    "id" TEXT NOT NULL,
+    "stt" INTEGER,
+    "fullName" TEXT NOT NULL,
+    "classId" TEXT NOT NULL,
+    "parentEmail" TEXT,
+    "parentPhone" TEXT,
+    "monthlyTuitionFee" DECIMAL(12,0) NOT NULL,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
--- -----------------------------------------------------------------------------
--- Student
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS "Student" (
-    id                  TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-    "fullName"          TEXT NOT NULL,
-    "classId"           TEXT NOT NULL,
-    "parentEmail"       TEXT,
-    "parentPhone"       TEXT,
-    "monthlyTuitionFee" DECIMAL(12, 0) NOT NULL,
-    active              BOOLEAN NOT NULL DEFAULT TRUE,
-    "createdAt"         TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "Student_classId_fkey" FOREIGN KEY ("classId")
-        REFERENCES "Class" (id) ON DELETE RESTRICT ON UPDATE CASCADE
+    CONSTRAINT "Student_pkey" PRIMARY KEY ("id")
 );
 
-CREATE INDEX IF NOT EXISTS "Student_classId_idx" ON "Student" ("classId");
+-- CreateTable
+CREATE TABLE "TuitionPeriod" (
+    "id" TEXT NOT NULL,
+    "classId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "year" INTEGER NOT NULL,
+    "month" INTEGER NOT NULL,
+    "startDate" TIMESTAMP(3),
+    "endDate" TIMESTAMP(3),
+    "dueDate" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
--- -----------------------------------------------------------------------------
--- TuitionPayment
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS "TuitionPayment" (
-    id          TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    CONSTRAINT "TuitionPeriod_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TuitionPayment" (
+    "id" TEXT NOT NULL,
     "studentId" TEXT NOT NULL,
-    year        INTEGER NOT NULL,
-    month       INTEGER NOT NULL, -- 1-12
-    "isPaid"    BOOLEAN NOT NULL DEFAULT FALSE,
-    "paidDate"  TIMESTAMP(3),
-    amount      DECIMAL(12, 0) NOT NULL,
-    "dueDate"   TIMESTAMP(3) NOT NULL, -- e.g. day 5 of that month
+    "periodId" TEXT NOT NULL,
+    "expectedAmount" DECIMAL(12,0) NOT NULL,
+    "paidAmount" DECIMAL(12,0) NOT NULL DEFAULT 0,
+    "isPaid" BOOLEAN NOT NULL DEFAULT false,
+    "paidDate" TIMESTAMP(3),
+    "note" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "TuitionPayment_studentId_fkey" FOREIGN KEY ("studentId")
-        REFERENCES "Student" (id) ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT "TuitionPayment_month_check" CHECK (month >= 1 AND month <= 12),
-    CONSTRAINT "TuitionPayment_studentId_year_month_key" UNIQUE ("studentId", year, month)
+    CONSTRAINT "TuitionPayment_pkey" PRIMARY KEY ("id")
 );
 
-CREATE INDEX IF NOT EXISTS "TuitionPayment_studentId_idx" ON "TuitionPayment" ("studentId");
-CREATE INDEX IF NOT EXISTS "TuitionPayment_year_month_idx" ON "TuitionPayment" (year, month);
+-- CreateTable
+CREATE TABLE "ReminderLog" (
+    "id" TEXT NOT NULL,
+    "studentId" TEXT NOT NULL,
+    "paymentId" TEXT NOT NULL,
+    "reminderType" TEXT NOT NULL,
+    "sentAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
--- Keep updatedAt current on every row update (mirrors Prisma's @updatedAt).
-CREATE OR REPLACE FUNCTION set_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW."updatedAt" = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-DROP TRIGGER IF EXISTS "TuitionPayment_set_updated_at" ON "TuitionPayment";
-CREATE TRIGGER "TuitionPayment_set_updated_at"
-    BEFORE UPDATE ON "TuitionPayment"
-    FOR EACH ROW
-    EXECUTE FUNCTION set_updated_at();
-
--- -----------------------------------------------------------------------------
--- ReminderLog
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS "ReminderLog" (
-    id             TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-    "studentId"    TEXT NOT NULL,
-    year           INTEGER NOT NULL,
-    month          INTEGER NOT NULL,
-    "reminderType" TEXT NOT NULL, -- 'due' | 'overdue7' | 'overdue15'
-    "sentAt"       TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "ReminderLog_studentId_fkey" FOREIGN KEY ("studentId")
-        REFERENCES "Student" (id) ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT "ReminderLog_reminderType_check"
-        CHECK ("reminderType" IN ('due', 'overdue7', 'overdue15')),
-    CONSTRAINT "ReminderLog_studentId_year_month_reminderType_key"
-        UNIQUE ("studentId", year, month, "reminderType")
+    CONSTRAINT "ReminderLog_pkey" PRIMARY KEY ("id")
 );
 
-CREATE INDEX IF NOT EXISTS "ReminderLog_studentId_idx" ON "ReminderLog" ("studentId");
+-- CreateIndex
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
--- -----------------------------------------------------------------------------
--- session — used by connect-pg-simple (express-session store). Not part of
--- the Prisma schema (managed by connect-pg-simple at runtime via
--- createTableIfMissing), included here so the whole DB can be provisioned
--- from this single script if desired. Schema matches connect-pg-simple's
--- official table-schema.sql.
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS "session" (
-    sid    VARCHAR NOT NULL COLLATE "default",
-    sess   JSON    NOT NULL,
-    expire TIMESTAMP(6) NOT NULL,
+-- CreateIndex
+CREATE UNIQUE INDEX "TuitionPeriod_classId_year_month_key" ON "TuitionPeriod"("classId", "year", "month");
 
-    CONSTRAINT "session_pkey" PRIMARY KEY (sid) NOT DEFERRABLE INITIALLY IMMEDIATE
-);
+-- CreateIndex
+CREATE UNIQUE INDEX "TuitionPayment_studentId_periodId_key" ON "TuitionPayment"("studentId", "periodId");
 
-CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" (expire);
+-- CreateIndex
+CREATE UNIQUE INDEX "ReminderLog_paymentId_reminderType_key" ON "ReminderLog"("paymentId", "reminderType");
 
-COMMIT;
+-- AddForeignKey
+ALTER TABLE "Class" ADD CONSTRAINT "Class_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Student" ADD CONSTRAINT "Student_classId_fkey" FOREIGN KEY ("classId") REFERENCES "Class"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TuitionPeriod" ADD CONSTRAINT "TuitionPeriod_classId_fkey" FOREIGN KEY ("classId") REFERENCES "Class"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TuitionPayment" ADD CONSTRAINT "TuitionPayment_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TuitionPayment" ADD CONSTRAINT "TuitionPayment_periodId_fkey" FOREIGN KEY ("periodId") REFERENCES "TuitionPeriod"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ReminderLog" ADD CONSTRAINT "ReminderLog_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ReminderLog" ADD CONSTRAINT "ReminderLog_paymentId_fkey" FOREIGN KEY ("paymentId") REFERENCES "TuitionPayment"("id") ON DELETE CASCADE ON UPDATE CASCADE;

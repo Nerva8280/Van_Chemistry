@@ -28,6 +28,7 @@ export default {
           100: '#ffe6b3',
           500: '#fab219',
           600: '#e0980a',
+          700: '#9a6400',
         },
         danger: {
           50: '#fbe9e9',

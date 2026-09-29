@@ -1,82 +1,142 @@
-import { Prisma, PrismaClient } from "@prisma/client";
-import prisma from "../config/db";
-import { buildDueDate } from "./overdue.service";
+import { Prisma, PrismaClient, TuitionPayment, TuitionPeriod } from "@prisma/client";
+import { toNumber } from "../utils/money";
+import { computeOverdue, startOfDay } from "./overdue.service";
 
-/**
- * Creates the 12 monthly TuitionPayment rows (Jan..Dec) for a new student,
- * for the given year (defaults to current year), all unpaid.
- * Uses `createMany` with `skipDuplicates` so it is safe to call more than
- * once (e.g. re-run after partial failure) without violating the
- * @@unique([studentId, year, month]) constraint.
- */
-export async function createYearlyPaymentsForStudent(
-  client: Prisma.TransactionClient | PrismaClient,
-  params: { studentId: string; monthlyTuitionFee: Prisma.Decimal | number | string; year?: number }
+type Db = Prisma.TransactionClient | PrismaClient;
+
+export type PaymentStatus = "paid" | "partial" | "overdue" | "unpaid";
+
+export const STATUS_LABELS: Record<PaymentStatus, string> = {
+  paid: "Đã đóng",
+  partial: "Đóng một phần",
+  overdue: "Quá hạn",
+  unpaid: "Chưa đóng",
+};
+
+export function isOverdue(dueDate: Date | null, now: Date = new Date()): boolean {
+  return dueDate !== null && computeOverdue({ isPaid: false, dueDate, now }).isOverdue;
+}
+
+export function paymentStatus(
+  p: { isPaid: boolean; paidAmount: number; dueDate: Date | null },
+  now: Date = new Date()
+): PaymentStatus {
+  if (p.isPaid) return "paid";
+  if (p.paidAmount > 0) return "partial";
+  if (isOverdue(p.dueDate, now)) return "overdue";
+  return "unpaid";
+}
+
+export function serializePeriod(period: TuitionPeriod) {
+  return {
+    id: period.id,
+    classId: period.classId,
+    name: period.name,
+    year: period.year,
+    month: period.month,
+    startDate: period.startDate,
+    endDate: period.endDate,
+    dueDate: period.dueDate,
+  };
+}
+
+export function serializePayment(p: TuitionPayment & { period: TuitionPeriod }, now: Date = new Date()) {
+  const expectedAmount = toNumber(p.expectedAmount);
+  const paidAmount = toNumber(p.paidAmount);
+  return {
+    id: p.id,
+    studentId: p.studentId,
+    periodId: p.periodId,
+    year: p.period.year,
+    month: p.period.month,
+    expectedAmount,
+    paidAmount,
+    isPaid: p.isPaid,
+    paidDate: p.paidDate,
+    note: p.note,
+    status: paymentStatus({ isPaid: p.isPaid, paidAmount, dueDate: p.period.dueDate }, now),
+    updatedAt: p.updatedAt,
+  };
+}
+
+// A student who joins mid-year only owes the current and future periods of the class.
+export async function createPaymentsForNewStudent(
+  db: Db,
+  params: { studentId: string; classId: string; fee: number }
 ) {
-  const year = params.year ?? new Date().getFullYear();
-  const amount = params.monthlyTuitionFee;
-
-  const rows = Array.from({ length: 12 }, (_, i) => {
-    const month = i + 1;
-    return {
-      studentId: params.studentId,
-      year,
-      month,
-      isPaid: false,
-      paidDate: null,
-      amount: amount as any,
-      dueDate: buildDueDate(year, month),
-    };
+  const today = startOfDay(new Date());
+  const periods = await db.tuitionPeriod.findMany({ where: { classId: params.classId } });
+  const open = periods.filter((p) => {
+    const last = p.endDate ?? p.dueDate ?? p.startDate;
+    return last === null || startOfDay(last) >= today;
   });
+  if (open.length === 0) return;
+  await db.tuitionPayment.createMany({
+    data: open.map((p) => ({ studentId: params.studentId, periodId: p.id, expectedAmount: params.fee })),
+    skipDuplicates: true,
+  });
+}
 
-  await client.tuitionPayment.createMany({ data: rows, skipDuplicates: true });
+export async function createPaymentsForNewPeriod(db: Db, params: { periodId: string; classId: string }) {
+  const students = await db.student.findMany({ where: { classId: params.classId, active: true } });
+  if (students.length === 0) return;
+  await db.tuitionPayment.createMany({
+    data: students.map((s) => ({
+      studentId: s.id,
+      periodId: params.periodId,
+      expectedAmount: s.monthlyTuitionFee,
+    })),
+    skipDuplicates: true,
+  });
+}
+
+export interface PaymentUpdateInput {
+  isPaid?: boolean;
+  paidAmount?: number;
+  paidDate?: Date | null;
+  note?: string | null;
 }
 
 /**
- * Toggles the paid state of a TuitionPayment row (creating it if missing),
- * date-stamping paidDate when flipping to true and clearing it when flipping
- * to false, per the contract.
+ * Checking the box means "fully paid": paidAmount becomes the expected amount and paidDate
+ * defaults to today. Unchecking clears both. Entering an amount directly derives isPaid
+ * from whether it covers the expected amount, so partial payments stay unchecked.
  */
-export async function setPaymentStatus(params: {
-  studentId: string;
-  year: number;
-  month: number;
-  isPaid: boolean;
-}) {
-  const { studentId, year, month, isPaid } = params;
+export function buildPaymentUpdate(
+  existing: { expectedAmount: number; paidDate: Date | null },
+  input: PaymentUpdateInput,
+  now: Date = new Date()
+): Prisma.TuitionPaymentUpdateInput {
+  const data: Prisma.TuitionPaymentUpdateInput = {};
+  if (input.note !== undefined) data.note = input.note;
 
-  const student = await prisma.student.findUnique({ where: { id: studentId } });
-  if (!student) {
-    throw Object.assign(new Error("Không tìm thấy học sinh."), { status: 404 });
+  if (input.paidAmount !== undefined) {
+    const paid = input.paidAmount;
+    data.paidAmount = paid;
+    data.isPaid = input.isPaid ?? paid >= existing.expectedAmount;
+    data.paidDate = paid > 0 ? (input.paidDate !== undefined ? input.paidDate : existing.paidDate ?? now) : null;
+    return data;
   }
 
-  const existing = await prisma.tuitionPayment.findUnique({
-    where: { studentId_year_month: { studentId, year, month } },
-  });
-
-  const dueDate = buildDueDate(year, month);
-
-  if (!existing) {
-    return prisma.tuitionPayment.create({
-      data: {
-        studentId,
-        year,
-        month,
-        isPaid,
-        paidDate: isPaid ? new Date() : null,
-        amount: student.monthlyTuitionFee,
-        dueDate,
-      },
-    });
+  if (input.isPaid === true) {
+    data.isPaid = true;
+    data.paidAmount = existing.expectedAmount;
+    data.paidDate = input.paidDate ?? existing.paidDate ?? now;
+  } else if (input.isPaid === false) {
+    data.isPaid = false;
+    data.paidAmount = 0;
+    data.paidDate = null;
+  } else if (input.paidDate !== undefined) {
+    data.paidDate = input.paidDate;
   }
-
-  return prisma.tuitionPayment.update({
-    where: { id: existing.id },
-    data: {
-      isPaid,
-      paidDate: isPaid ? new Date() : null,
-    },
-  });
+  return data;
 }
 
-export default { createYearlyPaymentsForStudent, setPaymentStatus };
+export default {
+  paymentStatus,
+  serializePeriod,
+  serializePayment,
+  createPaymentsForNewStudent,
+  createPaymentsForNewPeriod,
+  buildPaymentUpdate,
+};

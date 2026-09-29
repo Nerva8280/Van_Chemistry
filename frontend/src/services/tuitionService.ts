@@ -1,16 +1,51 @@
 import api from './api';
-import { TuitionGridResponse, TuitionPayment } from '../types';
+import { Payment, PaymentStatus, TuitionGridResponse } from '../types';
+
+export interface TuitionGridParams {
+  year?: number;
+  month?: number;
+  classId?: string;
+  sheet?: string;
+  status?: PaymentStatus;
+  search?: string;
+}
+
+export type PaymentPatch =
+  | { isPaid: boolean }
+  | { paidAmount: number; paidDate?: string | null; isPaid?: boolean; note?: string | null }
+  | { note: string | null };
 
 export const tuitionService = {
-  async grid(year: number, classId?: string): Promise<TuitionGridResponse> {
+  async grid(params: TuitionGridParams = {}): Promise<TuitionGridResponse> {
     const res = await api.get<TuitionGridResponse>('/tuition', {
-      params: { year, classId: classId || undefined },
+      params: {
+        year: params.year || undefined,
+        month: params.month || undefined,
+        classId: params.classId || undefined,
+        sheet: params.sheet || undefined,
+        status: params.status || undefined,
+        search: params.search?.trim() || undefined,
+      },
     });
     return res.data;
   },
 
-  async setPaid(studentId: string, year: number, month: number, isPaid: boolean): Promise<TuitionPayment> {
-    const res = await api.put<TuitionPayment>(`/tuition/${studentId}/${year}/${month}`, { isPaid });
+  async updatePayment(id: string, patch: PaymentPatch): Promise<Payment> {
+    const res = await api.patch<Payment>(`/tuition/payments/${id}`, patch);
     return res.data;
+  },
+
+  async bulkPaid(paymentIds: string[]): Promise<{ updated: Payment[] }> {
+    const res = await api.post<{ updated: Payment[] }>('/tuition/payments/bulk-paid', { paymentIds });
+    return res.data;
+  },
+
+  async createPayment(studentId: string, periodId: string): Promise<Payment> {
+    const res = await api.post<Payment>('/tuition/payments', { studentId, periodId });
+    return res.data;
+  },
+
+  async deletePayment(id: string): Promise<void> {
+    await api.delete(`/tuition/payments/${id}`);
   },
 };
