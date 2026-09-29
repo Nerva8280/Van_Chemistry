@@ -84,7 +84,7 @@ export default function Students() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classFilter, debouncedSearch]);
 
-  function classOf(student: Student): { name: string; sheetName?: string | null } | undefined {
+  function classOf(student: Student): { name: string } | undefined {
     return classes.find((c) => c.id === student.classId) ?? student.class;
   }
 
@@ -273,12 +273,7 @@ export default function Students() {
                     {student.fullName}
                     {!student.active && <span className="ml-1 text-xs font-normal text-slate-400">(đã nghỉ)</span>}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {classOf(student)?.name ?? '—'}
-                    {classOf(student)?.sheetName && (
-                      <span className="block text-xs text-slate-400">{classOf(student)?.sheetName}</span>
-                    )}
-                  </td>
+                  <td className="px-4 py-3 text-slate-600">{classOf(student)?.name ?? '—'}</td>
                   <td className="px-4 py-3 text-slate-600">{student.parentEmail || '—'}</td>
                   <td className="px-4 py-3 text-slate-600">{student.parentPhone || '—'}</td>
                   <td className="px-4 py-3 tabular-nums">{formatCurrency(student.monthlyTuitionFee)}</td>

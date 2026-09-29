@@ -48,7 +48,6 @@ export async function getTuitionGrid(req: Request, res: Response) {
   const year = parseIntParam(req.query.year) ?? years[0] ?? new Date().getFullYear();
   const month = parseIntParam(req.query.month);
   const classId = (req.query.classId as string) || undefined;
-  const sheet = (req.query.sheet as string) || undefined;
   const search = ((req.query.search as string) || "").trim();
   const status = STATUSES.includes(req.query.status as PaymentStatus)
     ? (req.query.status as PaymentStatus)
@@ -56,7 +55,6 @@ export async function getTuitionGrid(req: Request, res: Response) {
 
   const classWhere: any = { userId };
   if (classId) classWhere.id = classId;
-  if (sheet) classWhere.sheetName = sheet;
 
   const classes = await prisma.class.findMany({
     where: classWhere,
@@ -109,21 +107,13 @@ export async function getTuitionGrid(req: Request, res: Response) {
     })
     .sort((a, b) => a.year - b.year || a.month - b.month);
 
-  const sheets = await prisma.class.findMany({
-    where: { userId, sheetName: { not: null } },
-    distinct: ["sheetName"],
-    select: { sheetName: true },
-  });
-
   res.json({
     year,
     years: years.length ? years : [year],
-    sheets: sheets.map((s) => s.sheetName as string),
     columns,
     classes: classes.map((c) => ({
       id: c.id,
       name: c.name,
-      sheetName: c.sheetName,
       periods: c.periods.map(serializePeriod),
     })),
     students: rows,

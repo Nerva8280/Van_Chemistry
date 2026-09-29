@@ -92,8 +92,7 @@ function WarningGroups({ warnings }: { warnings: ImportWarning[] }) {
 function PreviewView({ preview }: { preview: ImportPreview }) {
   return (
     <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <SummaryCard label="Số sheet" value={preview.sheets.length} />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <SummaryCard label="Số lớp" value={preview.classes.length} />
         <SummaryCard label="Số học sinh" value={preview.studentCount} />
         <SummaryCard label="Số khoản học phí" value={preview.paymentCount} />
@@ -102,10 +101,9 @@ function PreviewView({ preview }: { preview: ImportPreview }) {
       <div className="flex flex-col gap-4">
         <h3 className="text-sm font-semibold text-slate-800">Các lớp trong file</h3>
         {preview.classes.map((c) => (
-          <div key={`${c.sheetName}-${c.name}`} className="overflow-hidden rounded-lg ring-1 ring-slate-200">
+          <div key={c.name} className="overflow-hidden rounded-lg ring-1 ring-slate-200">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 bg-slate-50 px-3 py-2 text-sm">
               <span className="font-semibold text-slate-900">{c.name}</span>
-              <span className="text-slate-500">Sheet: {c.sheetName}</span>
               {c.exists ? <Badge color="slate">Đã có</Badge> : <Badge color="green">Mới</Badge>}
               <span className="text-slate-600">Học phí mặc định: {formatCurrency(c.defaultFee)}</span>
               <span className="text-slate-600">{c.studentCount} học sinh</span>

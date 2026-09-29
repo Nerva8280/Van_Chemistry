@@ -65,7 +65,6 @@ export async function exportTuitionSummaryReport(req: Request, res: Response) {
       stt: s.stt,
       fullName: s.fullName,
       className: s.class.name,
-      sheetName: s.class.sheetName,
       fee: toNumber(s.monthlyTuitionFee),
       payments: s.payments.map((p) => {
         const sp = serializePayment(p, now);

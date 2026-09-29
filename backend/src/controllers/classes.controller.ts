@@ -7,7 +7,6 @@ function serializeClass(cls: any) {
   return {
     id: cls.id,
     name: cls.name,
-    sheetName: cls.sheetName ?? null,
     defaultTuitionFee: toNumber(cls.defaultTuitionFee),
     userId: cls.userId,
     createdAt: cls.createdAt,
@@ -17,12 +16,6 @@ function serializeClass(cls: any) {
 }
 
 const COUNTS = { _count: { select: { students: true, periods: true } } } as const;
-
-function parseSheetName(value: unknown): string | null {
-  if (value === undefined || value === null) return null;
-  const s = String(value).trim();
-  return s ? s.slice(0, 100) : null;
-}
 
 export async function listClasses(req: Request, res: Response) {
   const userId = req.ownerId!;
@@ -36,7 +29,7 @@ export async function listClasses(req: Request, res: Response) {
 
 export async function createClass(req: Request, res: Response) {
   const userId = req.ownerId!;
-  const { name, defaultTuitionFee, sheetName } = req.body ?? {};
+  const { name, defaultTuitionFee } = req.body ?? {};
 
   if (!name || typeof name !== "string" || !name.trim()) {
     throw new AppError("Tên lớp là bắt buộc.");
@@ -47,7 +40,7 @@ export async function createClass(req: Request, res: Response) {
   }
 
   const cls = await prisma.class.create({
-    data: { name: name.trim(), defaultTuitionFee: fee, userId, sheetName: parseSheetName(sheetName) },
+    data: { name: name.trim(), defaultTuitionFee: fee, userId },
     include: COUNTS,
   });
 
@@ -57,7 +50,7 @@ export async function createClass(req: Request, res: Response) {
 export async function updateClass(req: Request, res: Response) {
   const userId = req.ownerId!;
   const { id } = req.params;
-  const { name, defaultTuitionFee, sheetName } = req.body ?? {};
+  const { name, defaultTuitionFee } = req.body ?? {};
 
   const existing = await prisma.class.findFirst({ where: { id, userId } });
   if (!existing) {
@@ -78,7 +71,6 @@ export async function updateClass(req: Request, res: Response) {
     }
     data.defaultTuitionFee = fee;
   }
-  if (sheetName !== undefined) data.sheetName = parseSheetName(sheetName);
 
   const cls = await prisma.class.update({
     where: { id },

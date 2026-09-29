@@ -5,7 +5,6 @@ export interface TuitionGridParams {
   year?: number;
   month?: number;
   classId?: string;
-  sheet?: string;
   status?: PaymentStatus;
   search?: string;
 }
@@ -22,7 +21,6 @@ export const tuitionService = {
         year: params.year || undefined,
         month: params.month || undefined,
         classId: params.classId || undefined,
-        sheet: params.sheet || undefined,
         status: params.status || undefined,
         search: params.search?.trim() || undefined,
       },

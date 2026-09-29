@@ -78,7 +78,6 @@ function defaultBulkMonth(columns: TuitionColumn[], filterMonth: string): string
 
 export default function Tuition() {
   const [year, setYear] = useState<number | null>(null);
-  const [sheet, setSheet] = useState('');
   const [classId, setClassId] = useState('');
   const [month, setMonth] = useState('');
   const [status, setStatus] = useState<'' | PaymentStatus>('');
@@ -112,7 +111,6 @@ export default function Tuition() {
         year: year ?? undefined,
         month: month ? Number(month) : undefined,
         classId,
-        sheet,
         status: status || undefined,
         search: debouncedSearch,
       });
@@ -124,7 +122,7 @@ export default function Tuition() {
     } finally {
       if (id === requestId.current) setLoading(false);
     }
-  }, [year, month, classId, sheet, status, debouncedSearch]);
+  }, [year, month, classId, status, debouncedSearch]);
 
   useEffect(() => {
     load();
@@ -203,16 +201,11 @@ export default function Tuition() {
       .filter((e): e is DueDateEntry => !!e.period);
   }, [dueColumn, shownClasses]);
 
-  const classOptions = useMemo(() => {
-    const source: { id: string; name: string; sheetName: string | null }[] = allClasses.length
-      ? allClasses
-      : data?.classes ?? [];
-    return sheet ? source.filter((c) => c.sheetName === sheet) : source;
-  }, [allClasses, data, sheet]);
+  const classOptions: { id: string; name: string }[] = allClasses.length ? allClasses : data?.classes ?? [];
 
   const yearOptions = data?.years?.length ? data.years : [year ?? new Date().getFullYear()];
   const yearValue = year ?? data?.year ?? new Date().getFullYear();
-  const hasFilters = !!(sheet || classId || month || status || search);
+  const hasFilters = !!(classId || month || status || search);
 
   // ---------- Cập nhật dữ liệu cục bộ ----------
 
@@ -357,7 +350,6 @@ export default function Tuition() {
   }
 
   function resetFilters() {
-    setSheet('');
     setClassId('');
     setMonth('');
     setStatus('');
@@ -534,33 +526,6 @@ export default function Tuition() {
             ))}
           </select>
         </div>
-        {(data?.sheets.length ?? 0) > 0 && (
-          <div>
-            <label className="label text-xs" htmlFor="f-sheet">
-              Sheet
-            </label>
-            <select
-              id="f-sheet"
-              className="input w-auto"
-              value={sheet}
-              onChange={(e) => {
-                const next = e.target.value;
-                setSheet(next);
-                if (next && classId) {
-                  const c = allClasses.find((x) => x.id === classId) ?? data?.classes.find((x) => x.id === classId);
-                  if (c && c.sheetName !== next) setClassId('');
-                }
-              }}
-            >
-              <option value="">Tất cả</option>
-              {data?.sheets.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
         <div>
           <label className="label text-xs" htmlFor="f-class">
             Lớp
@@ -776,10 +741,7 @@ export default function Tuition() {
                                 aria-label={`Chọn cả lớp ${g.cls.name}`}
                               />
                               <span className="truncate text-sm font-semibold text-slate-800">{g.cls.name}</span>
-                              <span className="shrink-0 text-xs text-slate-500">
-                                {g.cls.sheetName ? `${g.cls.sheetName} · ` : ''}
-                                {g.students.length} HS
-                              </span>
+                              <span className="shrink-0 text-xs text-slate-500">{g.students.length} HS</span>
                             </label>
                           </td>
                           <td colSpan={totalCols - 3} className="border-b border-slate-200 bg-slate-100" />

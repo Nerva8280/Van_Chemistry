@@ -163,7 +163,6 @@ export interface TuitionSummaryExportRow {
   stt: number | null;
   fullName: string;
   className: string;
-  sheetName: string | null;
   fee: number;
   payments: { month: number; expectedAmount: number; paidAmount: number; isPaid: boolean; statusLabel: string }[];
 }
@@ -182,7 +181,6 @@ export function buildTuitionSummaryExportWorkbook(
       STT: s.stt ?? "",
       [HEADER_FULL_NAME]: s.fullName,
       [HEADER_CLASS]: s.className,
-      Sheet: s.sheetName ?? "",
       "Học phí mỗi kỳ": s.fee,
     };
     for (const m of months) {
@@ -206,7 +204,6 @@ export function buildTuitionSummaryExportWorkbook(
     { wch: 5 },
     { wch: 24 },
     { wch: 16 },
-    { wch: 14 },
     { wch: 14 },
     ...months.map(() => ({ wch: 26 })),
     { wch: 14 },

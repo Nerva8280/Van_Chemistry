@@ -12,11 +12,9 @@ function parseIntParam(value: unknown): number | undefined {
 export async function getDashboard(req: Request, res: Response) {
   const userId = req.ownerId!;
   const classId = (req.query.classId as string) || undefined;
-  const sheet = (req.query.sheet as string) || undefined;
 
   const classWhere: any = { userId };
   if (classId) classWhere.id = classId;
-  if (sheet) classWhere.sheetName = sheet;
 
   const yearRows = await prisma.tuitionPeriod.findMany({
     where: { class: classWhere },

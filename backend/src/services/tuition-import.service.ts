@@ -61,7 +61,6 @@ interface ParsedStudent {
 
 interface ClassPlan {
   name: string;
-  sheetName: string;
   defaultFee: number;
   periods: ParsedPeriod[];
   students: (ParsedStudent & { fee: number })[];
@@ -70,10 +69,8 @@ interface ClassPlan {
 export interface ImportPreview {
   year: number;
   unit: number;
-  sheets: { name: string; classes: string[]; studentCount: number }[];
   classes: {
     name: string;
-    sheetName: string;
     exists: boolean;
     defaultFee: number;
     studentCount: number;
@@ -388,7 +385,6 @@ function buildPlan(parsed: ReturnType<typeof parseTuitionWorkbook>) {
 
   const plans: ClassPlan[] = [];
   for (const [className, list] of byClass) {
-    const sheetName = list[0].sheet;
     const periodsByMonth = new Map<string, ParsedPeriod>();
     for (const s of list) {
       for (const p of sheetPeriods.get(s.sheet) ?? []) periodsByMonth.set(`${p.year}-${p.month}`, p);
@@ -411,7 +407,6 @@ function buildPlan(parsed: ReturnType<typeof parseTuitionWorkbook>) {
     }
     plans.push({
       name: className,
-      sheetName,
       defaultFee,
       periods: [...periodsByMonth.values()].sort((a, b) => a.year - b.year || a.month - b.month),
       students: withFee,
@@ -483,21 +478,11 @@ export async function previewTuitionImport(userId: string, buffer: Buffer, opts:
   const existing = await prisma.class.findMany({ where: { userId }, select: { name: true } });
   const existingNames = new Set(existing.map((c) => c.name));
 
-  const sheets = new Map<string, { classes: Set<string>; count: number }>();
-  for (const s of parsed.students) {
-    const e = sheets.get(s.sheet) ?? { classes: new Set<string>(), count: 0 };
-    e.classes.add(s.className);
-    e.count++;
-    sheets.set(s.sheet, e);
-  }
-
   const preview: ImportPreview = {
     year: opts.year,
     unit: opts.unit,
-    sheets: [...sheets.entries()].map(([name, e]) => ({ name, classes: [...e.classes], studentCount: e.count })),
     classes: plans.map((p) => ({
       name: p.name,
-      sheetName: p.sheetName,
       exists: existingNames.has(p.name),
       defaultFee: p.defaultFee,
       studentCount: p.students.length,
@@ -521,11 +506,9 @@ export async function commitTuitionImport(userId: string, plans: ClassPlan[]) {
         let cls = await tx.class.findFirst({ where: { userId, name: plan.name } });
         if (!cls) {
           cls = await tx.class.create({
-            data: { userId, name: plan.name, sheetName: plan.sheetName, defaultTuitionFee: plan.defaultFee },
+            data: { userId, name: plan.name, defaultTuitionFee: plan.defaultFee },
           });
           classesCreated++;
-        } else if (!cls.sheetName) {
-          cls = await tx.class.update({ where: { id: cls.id }, data: { sheetName: plan.sheetName } });
         }
 
         const periodIds = new Map<string, string>();
@@ -561,7 +544,7 @@ export async function commitTuitionImport(userId: string, plans: ClassPlan[]) {
               paidAmount: c.amount,
               isPaid: c.amount >= s.fee,
               paidDate: null,
-              note: `Nhập từ file (sheet "${s.sheet}")`,
+              note: "Nhập từ file Excel",
             };
             await tx.tuitionPayment.upsert({
               where: { studentId_periodId: { studentId: student.id, periodId } },

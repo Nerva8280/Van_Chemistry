@@ -24,7 +24,6 @@ function serializeStudent(student: any) {
       ? {
           id: student.class.id,
           name: student.class.name,
-          sheetName: student.class.sheetName ?? null,
           defaultTuitionFee: toNumber(student.class.defaultTuitionFee),
           userId: student.class.userId,
           createdAt: student.class.createdAt,

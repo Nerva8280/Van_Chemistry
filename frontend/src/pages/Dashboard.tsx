@@ -37,7 +37,6 @@ const MONTH_STAT_CLASS: Record<PaymentStatus, string> = {
 export default function Dashboard() {
   const [year, setYear] = useState<number | null>(null);
   const [month, setMonth] = useState('');
-  const [sheet, setSheet] = useState('');
   const [classId, setClassId] = useState('');
   const [classes, setClasses] = useState<Class[]>([]);
   const [data, setData] = useState<DashboardResponse | null>(null);
@@ -49,7 +48,7 @@ export default function Dashboard() {
       .list()
       .then(setClasses)
       .catch(() => {
-        // Không bắt buộc: chỉ dùng cho bộ lọc Sheet / Lớp.
+        // Không bắt buộc: chỉ dùng cho bộ lọc Lớp.
       });
   }, []);
 
@@ -63,7 +62,6 @@ export default function Dashboard() {
           year: year ?? undefined,
           month: month ? Number(month) : undefined,
           classId,
-          sheet,
         });
         if (!cancelled) setData(res);
       } catch (err) {
@@ -76,13 +74,8 @@ export default function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, [year, month, classId, sheet]);
+  }, [year, month, classId]);
 
-  const sheets = useMemo(
-    () => [...new Set(classes.map((c) => c.sheetName).filter((s): s is string => !!s))].sort(),
-    [classes]
-  );
-  const classOptions = sheet ? classes.filter((c) => c.sheetName === sheet) : classes;
   const yearOptions = data?.years?.length ? data.years : [year ?? new Date().getFullYear()];
   const yearValue = year ?? data?.year ?? new Date().getFullYear();
   const selectedMonth = data?.selectedMonth ?? null;
@@ -152,38 +145,13 @@ export default function Dashboard() {
             ))}
           </select>
         </div>
-        {sheets.length > 0 && (
-          <div>
-            <label className="label text-xs" htmlFor="d-sheet">
-              Sheet
-            </label>
-            <select
-              id="d-sheet"
-              className="input w-auto"
-              value={sheet}
-              onChange={(e) => {
-                const next = e.target.value;
-                setSheet(next);
-                const c = classes.find((x) => x.id === classId);
-                if (next && c && c.sheetName !== next) setClassId('');
-              }}
-            >
-              <option value="">Tất cả</option>
-              {sheets.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
         <div>
           <label className="label text-xs" htmlFor="d-class">
             Lớp
           </label>
           <select id="d-class" className="input w-auto" value={classId} onChange={(e) => setClassId(e.target.value)}>
             <option value="">Tất cả lớp</option>
-            {classOptions.map((c) => (
+            {classes.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>

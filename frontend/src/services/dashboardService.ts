@@ -5,7 +5,6 @@ export interface DashboardParams {
   year?: number;
   month?: number;
   classId?: string;
-  sheet?: string;
 }
 
 export const dashboardService = {
@@ -15,7 +14,6 @@ export const dashboardService = {
         year: params.year || undefined,
         month: params.month || undefined,
         classId: params.classId || undefined,
-        sheet: params.sheet || undefined,
       },
     });
     return res.data;

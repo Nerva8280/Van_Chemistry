@@ -13,7 +13,6 @@ export interface User {
 export interface Class {
   id: string;
   name: string;
-  sheetName: string | null;
   defaultTuitionFee: number;
   userId: string;
   createdAt: string;
@@ -72,7 +71,6 @@ export interface TuitionColumn {
 export interface TuitionGridClass {
   id: string;
   name: string;
-  sheetName: string | null;
   periods: Period[];
 }
 
@@ -89,7 +87,6 @@ export interface TuitionGridStudent {
 export interface TuitionGridResponse {
   year: number;
   years: number[];
-  sheets: string[];
   columns: TuitionColumn[];
   classes: TuitionGridClass[];
   students: TuitionGridStudent[];
@@ -227,7 +224,6 @@ export interface PreviewPeriod {
 
 export interface PreviewClass {
   name: string;
-  sheetName: string;
   exists: boolean;
   defaultFee: number;
   studentCount: number;
@@ -245,7 +241,6 @@ export interface PreviewTotal {
 export interface ImportPreview {
   year: number;
   unit: number;
-  sheets: { name: string; classes: string[]; studentCount: number }[];
   classes: PreviewClass[];
   totals: PreviewTotal[];
   studentCount: number;
