@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  name        String
+  avatarUrl   String?
+  provider    String // "google" | "microsoft"
+  providerId  String
+  createdAt   DateTime @default(now())
+  classes     Class[]
+}
+
+model Class {
+  id                String    @id @default(uuid())
+  name              String
+  defaultTuitionFee Decimal   @db.Decimal(12, 0)
+  userId            String
+  user              User      @relation(fields: [userId], references: [id])
+  students          Student[]
+  createdAt         DateTime  @default(now())
+}
+
+model Student {
+  id                String           @id @default(uuid())
+  fullName          String
+  classId           String
+  class             Class            @relation(fields: [classId], references: [id])
+  parentEmail       String?
+  parentPhone       String?
+  monthlyTuitionFee Decimal          @db.Decimal(12, 0)
+  active            Boolean          @default(true)
+  createdAt         DateTime         @default(now())
+  payments          TuitionPayment[]
+  reminders         ReminderLog[]
+}
+
+model TuitionPayment {
+  id        String    @id @default(uuid())
+  studentId String
+  student   Student   @relation(fields: [studentId], references: [id])
+  year      Int
+  month     Int // 1-12
+  isPaid    Boolean   @default(false)
+  paidDate  DateTime?
+  amount    Decimal   @db.Decimal(12, 0)
+  dueDate   DateTime // e.g. day 5 of that month
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([studentId, year, month])
+}
+
+model ReminderLog {
+  id           String   @id @default(uuid())
+  studentId    String
+  student      Student  @relation(fields: [studentId], references: [id])
+  year         Int
+  month        Int
+  reminderType String // "due" | "overdue7" | "overdue15"
+  sentAt       DateTime @default(now())
+
+  @@unique([studentId, year, month, reminderType])
+}

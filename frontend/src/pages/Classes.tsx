@@ -1,0 +1,225 @@
+import { FormEvent, useEffect, useState } from 'react';
+import Modal from '../components/ui/Modal';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Spinner from '../components/ui/Spinner';
+import Alert from '../components/ui/Alert';
+import EmptyState from '../components/ui/EmptyState';
+import { classService } from '../services/classService';
+import { getErrorMessage } from '../services/api';
+import { Class } from '../types';
+import { formatCurrency, formatDate } from '../utils/format';
+
+interface FormState {
+  name: string;
+  defaultTuitionFee: string;
+}
+
+const emptyForm: FormState = { name: '', defaultTuitionFee: '' };
+
+export default function Classes() {
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<Class | null>(null);
+  const [form, setForm] = useState<FormState>(emptyForm);
+  const [formErrors, setFormErrors] = useState<Partial<Record<keyof FormState, string>>>({});
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+
+  const [deleteTarget, setDeleteTarget] = useState<Class | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  async function loadClasses() {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await classService.list();
+      setClasses(data);
+    } catch (err) {
+      setError(getErrorMessage(err, 'Không thể tải danh sách lớp học.'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadClasses();
+  }, []);
+
+  function openCreate() {
+    setEditing(null);
+    setForm(emptyForm);
+    setFormErrors({});
+    setFormError('');
+    setModalOpen(true);
+  }
+
+  function openEdit(cls: Class) {
+    setEditing(cls);
+    setForm({ name: cls.name, defaultTuitionFee: String(cls.defaultTuitionFee) });
+    setFormErrors({});
+    setFormError('');
+    setModalOpen(true);
+  }
+
+  function validate(): boolean {
+    const errors: Partial<Record<keyof FormState, string>> = {};
+    if (!form.name.trim()) errors.name = 'Vui lòng nhập tên lớp.';
+    const fee = Number(form.defaultTuitionFee);
+    if (!form.defaultTuitionFee.trim()) {
+      errors.defaultTuitionFee = 'Vui lòng nhập học phí mặc định.';
+    } else if (Number.isNaN(fee) || fee < 0) {
+      errors.defaultTuitionFee = 'Học phí phải là số không âm.';
+    }
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!validate()) return;
+    setSaving(true);
+    setFormError('');
+    try {
+      const payload = { name: form.name.trim(), defaultTuitionFee: Number(form.defaultTuitionFee) };
+      if (editing) {
+        await classService.update(editing.id, payload);
+      } else {
+        await classService.create(payload);
+      }
+      setModalOpen(false);
+      await loadClasses();
+    } catch (err) {
+      setFormError(getErrorMessage(err, 'Không thể lưu lớp học.'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await classService.remove(deleteTarget.id);
+      setDeleteTarget(null);
+      await loadClasses();
+    } catch (err) {
+      setError(getErrorMessage(err, 'Không thể xóa lớp học.'));
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold text-slate-900">Lớp học</h1>
+        <button type="button" className="btn-primary" onClick={openCreate}>
+          + Thêm lớp học
+        </button>
+      </div>
+
+      {error && <Alert message={error} />}
+
+      <div className="card overflow-x-auto p-0">
+        {loading ? (
+          <div className="flex justify-center py-16">
+            <Spinner size={28} />
+          </div>
+        ) : classes.length === 0 ? (
+          <div className="p-6">
+            <EmptyState message="Chưa có lớp học nào. Hãy thêm lớp học đầu tiên." />
+          </div>
+        ) : (
+          <table className="min-w-full divide-y divide-slate-100 text-sm">
+            <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-4 py-3">Tên lớp</th>
+                <th className="px-4 py-3">Số học sinh</th>
+                <th className="px-4 py-3">Học phí mặc định</th>
+                <th className="px-4 py-3">Ngày tạo</th>
+                <th className="px-4 py-3 text-right">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {classes.map((cls) => (
+                <tr key={cls.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-3 font-medium text-slate-800">{cls.name}</td>
+                  <td className="px-4 py-3 tabular-nums">{cls.studentCount}</td>
+                  <td className="px-4 py-3 tabular-nums">{formatCurrency(cls.defaultTuitionFee)}</td>
+                  <td className="px-4 py-3 text-slate-500">{formatDate(cls.createdAt)}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-end gap-2">
+                      <button type="button" className="btn-secondary" onClick={() => openEdit(cls)}>
+                        Sửa
+                      </button>
+                      <button type="button" className="btn-danger" onClick={() => setDeleteTarget(cls)}>
+                        Xóa
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <Modal open={modalOpen} title={editing ? 'Sửa lớp học' : 'Thêm lớp học'} onClose={() => setModalOpen(false)}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {formError && <Alert message={formError} />}
+          <div>
+            <label className="label" htmlFor="name">
+              Tên lớp
+            </label>
+            <input
+              id="name"
+              className="input"
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              placeholder="Ví dụ: Hóa 10A1"
+            />
+            {formErrors.name && <p className="mt-1 text-xs text-danger-600">{formErrors.name}</p>}
+          </div>
+          <div>
+            <label className="label" htmlFor="defaultTuitionFee">
+              Học phí mặc định (VNĐ/tháng)
+            </label>
+            <input
+              id="defaultTuitionFee"
+              className="input"
+              type="number"
+              min={0}
+              value={form.defaultTuitionFee}
+              onChange={(e) => setForm((f) => ({ ...f, defaultTuitionFee: e.target.value }))}
+              placeholder="Ví dụ: 500000"
+            />
+            {formErrors.defaultTuitionFee && (
+              <p className="mt-1 text-xs text-danger-600">{formErrors.defaultTuitionFee}</p>
+            )}
+          </div>
+          <div className="mt-2 flex justify-end gap-2">
+            <button type="button" className="btn-secondary" onClick={() => setModalOpen(false)} disabled={saving}>
+              Hủy
+            </button>
+            <button type="submit" className="btn-primary" disabled={saving}>
+              {saving ? 'Đang lưu...' : 'Lưu'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Xóa lớp học"
+        message={`Bạn có chắc chắn muốn xóa lớp "${deleteTarget?.name}"? Hành động này không thể hoàn tác.`}
+        loading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
+    </div>
+  );
+}
