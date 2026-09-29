@@ -91,6 +91,9 @@ Khi lọc `status`, chỉ trả về học sinh có ít nhất một khoản đ�
     trừ khi gửi `isPaid: true` để xác nhận hoàn tất dù chưa đủ tiền
   - `{ note }`
 - `POST /api/tuition/payments/bulk-paid` body `{ paymentIds: string[] }` → `{ updated: Payment[] }`
+- `POST /api/tuition/payments/bulk-enroll` body `{ studentIds: string[], year, month }` →
+  `{ created, alreadyEnrolled, noPeriod: string[] }`. Thêm mỗi học sinh vào kỳ (year, month) của lớp em đó;
+  em đã có trong kỳ được bỏ qua; `noPeriod` là tên các em có lớp chưa có kỳ tháng đó.
 - `POST /api/tuition/payments` body `{ studentId, periodId }` → `Payment` (thêm học sinh vào một kỳ, ô "—")
 - `DELETE /api/tuition/payments/:id` → `204` (bỏ học sinh khỏi kỳ, ô thành "—")
 

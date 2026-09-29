@@ -35,7 +35,8 @@ type ConfirmState =
   | { kind: 'unpay'; payment: Payment; label: string }
   | { kind: 'completePartial'; payment: Payment; label: string }
   | { kind: 'add'; studentId: string; periodId: string; label: string }
-  | { kind: 'bulk'; ids: string[]; month: number };
+  | { kind: 'bulk'; ids: string[]; month: number }
+  | { kind: 'enroll'; studentIds: string[]; col: TuitionColumn; alreadyIn: number; noPeriod: string[] };
 
 const colKey = (c: { year: number; month: number }) => `${c.year}-${c.month}`;
 
@@ -334,6 +335,27 @@ export default function Tuition() {
     setConfirm({ kind: 'bulk', ids, month: m });
   }
 
+  function handleEnrollClick() {
+    setInfo('');
+    const m = Number(bulkMonth);
+    const col = columns.find((c) => c.month === m);
+    if (!col) return;
+    const chosen = visibleStudents.filter((s) => selected.has(s.id));
+    const notIn = chosen.filter((s) => !paymentOf(s, col));
+    const alreadyIn = chosen.length - notIn.length;
+    const eligible = notIn.filter((s) => periodOf(classById.get(s.classId), col));
+    const noPeriod = notIn.filter((s) => !periodOf(classById.get(s.classId), col)).map((s) => s.fullName);
+    if (eligible.length === 0) {
+      setInfo(
+        noPeriod.length > 0
+          ? `Lớp của các học sinh đã chọn chưa có kỳ Tháng ${m}. Hãy bấm "+ Tạo kỳ" dưới chữ "Tháng ${m}" trước.`
+          : `Các học sinh đã chọn đều đã có trong kỳ Tháng ${m}.`
+      );
+      return;
+    }
+    setConfirm({ kind: 'enroll', studentIds: eligible.map((s) => s.id), col, alreadyIn, noPeriod });
+  }
+
   async function runConfirm() {
     if (!confirm) return;
     setConfirmLoading(true);
@@ -352,6 +374,12 @@ export default function Tuition() {
         const res = await tuitionService.bulkPaid(confirm.ids);
         setSelected(new Set());
         setInfo(`Đã đánh dấu ${res.updated.length} khoản là đã đóng.`);
+        await load();
+      } else if (confirm.kind === 'enroll') {
+        const res = await tuitionService.bulkEnroll(confirm.studentIds, confirm.col.year, confirm.col.month);
+        setSelected(new Set());
+        const extra = res.noPeriod.length > 0 ? ` ${res.noPeriod.length} học sinh thuộc lớp chưa có kỳ tháng này.` : '';
+        setInfo(`Đã thêm ${res.created} học sinh vào kỳ Tháng ${confirm.col.month}.${extra}`);
         await load();
       }
       setConfirm(null);
@@ -517,6 +545,21 @@ export default function Tuition() {
     confirmTitle = 'Đánh dấu hàng loạt';
     confirmMessage = `Đánh dấu ${confirm.ids.length} khoản là đã đóng? (Tháng ${confirm.month})`;
     confirmLabel = 'Đánh dấu đã đóng';
+  } else if (confirm?.kind === 'enroll') {
+    confirmTitle = 'Thêm vào kỳ';
+    const notes: string[] = [];
+    if (confirm.alreadyIn > 0) notes.push(`${confirm.alreadyIn} học sinh đã có trong kỳ nên được bỏ qua.`);
+    if (confirm.noPeriod.length > 0) {
+      notes.push(
+        `${confirm.noPeriod.length} học sinh thuộc lớp chưa có kỳ Tháng ${confirm.col.month} nên chưa thêm được (${confirm.noPeriod
+          .slice(0, 5)
+          .join(', ')}${confirm.noPeriod.length > 5 ? ', ...' : ''}).`
+      );
+    }
+    confirmMessage = `Thêm ${confirm.studentIds.length} học sinh vào kỳ Tháng ${confirm.col.month}/${confirm.col.year}? Các em sẽ có trạng thái "Chưa đóng".${
+      notes.length ? ' ' + notes.join(' ') : ''
+    }`;
+    confirmLabel = 'Thêm vào kỳ';
   }
 
 
@@ -672,6 +715,9 @@ export default function Tuition() {
           </select>
           <button type="button" className="btn-primary" onClick={handleBulkClick} disabled={!bulkMonth}>
             Đánh dấu đã đóng
+          </button>
+          <button type="button" className="btn-secondary bg-white" onClick={handleEnrollClick} disabled={!bulkMonth}>
+            Thêm vào kỳ
           </button>
           <button type="button" className="btn-secondary" onClick={() => setSelected(new Set())}>
             Bỏ chọn

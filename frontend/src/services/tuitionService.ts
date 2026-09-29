@@ -38,6 +38,16 @@ export const tuitionService = {
     return res.data;
   },
 
+  /** Thêm nhiều học sinh vào kỳ tháng (year, month) của lớp mỗi em. */
+  async bulkEnroll(
+    studentIds: string[],
+    year: number,
+    month: number
+  ): Promise<{ created: number; alreadyEnrolled: number; noPeriod: string[] }> {
+    const res = await api.post('/tuition/payments/bulk-enroll', { studentIds, year, month });
+    return res.data;
+  },
+
   async createPayment(studentId: string, periodId: string): Promise<Payment> {
     const res = await api.post<Payment>('/tuition/payments', { studentId, periodId });
     return res.data;

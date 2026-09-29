@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { Prisma } from "@prisma/client";
 import prisma from "../config/db";
 import { toNumber } from "../utils/money";
 import { AppError } from "../middleware/errorHandler";
@@ -218,6 +219,42 @@ export async function createPayment(req: Request, res: Response) {
   res.status(201).json(serializePayment(created));
 }
 
+/**
+ * Enrolls many students in the (year, month) period of their own class. Students already
+ * enrolled are skipped; students whose class has no period that month are reported back.
+ */
+export async function bulkEnroll(req: Request, res: Response) {
+  const userId = req.ownerId!;
+  const { studentIds, year, month } = req.body ?? {};
+  if (!Array.isArray(studentIds) || studentIds.length === 0 || studentIds.some((id) => typeof id !== "string")) {
+    throw new AppError("Danh sách học sinh không hợp lệ.");
+  }
+  if (studentIds.length > 1000) throw new AppError("Chỉ được chọn tối đa 1000 học sinh mỗi lần.");
+  const y = Number(year);
+  const m = Number(month);
+  if (!Number.isInteger(y) || !Number.isInteger(m) || m < 1 || m > 12) throw new AppError("Tháng hoặc năm không hợp lệ.");
+
+  const students = await prisma.student.findMany({
+    where: { id: { in: studentIds as string[] }, class: { userId } },
+    include: { class: { include: { periods: { where: { year: y, month: m } } } } },
+  });
+
+  const toCreate: { studentId: string; periodId: string; expectedAmount: Prisma.Decimal }[] = [];
+  const noPeriod: string[] = [];
+  for (const s of students) {
+    const period = s.class.periods[0];
+    if (!period) noPeriod.push(s.fullName);
+    else toCreate.push({ studentId: s.id, periodId: period.id, expectedAmount: s.monthlyTuitionFee });
+  }
+  const result = await prisma.tuitionPayment.createMany({ data: toCreate, skipDuplicates: true });
+
+  res.json({
+    created: result.count,
+    alreadyEnrolled: toCreate.length - result.count,
+    noPeriod,
+  });
+}
+
 /** Un-enrolls a student from a period (the cell becomes "—"). */
 export async function deletePayment(req: Request, res: Response) {
   const userId = req.ownerId!;
@@ -226,4 +263,4 @@ export async function deletePayment(req: Request, res: Response) {
   res.status(204).end();
 }
 
-export default { getTuitionGrid, updatePayment, bulkMarkPaid, createPayment, deletePayment };
+export default { getTuitionGrid, updatePayment, bulkMarkPaid, bulkEnroll, createPayment, deletePayment };
