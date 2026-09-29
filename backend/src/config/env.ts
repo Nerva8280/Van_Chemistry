@@ -44,6 +44,8 @@ export const env = {
   GMAIL_USER: optional("GMAIL_USER", ""),
   GMAIL_APP_PASSWORD: optional("GMAIL_APP_PASSWORD", ""),
 
+  CRON_SECRET: optional("CRON_SECRET", ""),
+
   TUITION_DUE_DAY: (() => {
     const raw = parseInt(optional("TUITION_DUE_DAY", "5"), 10);
     if (Number.isNaN(raw) || raw < 1 || raw > 28) return 5;
