@@ -24,7 +24,7 @@ function sendXlsx(res: Response, buffer: Buffer, filename: string) {
 }
 
 export async function exportStudentsReport(req: Request, res: Response) {
-  const userId = req.user!.id;
+  const userId = req.ownerId!;
 
   const students = await prisma.student.findMany({
     where: { class: { userId } },
@@ -47,7 +47,7 @@ export async function exportStudentsReport(req: Request, res: Response) {
 }
 
 export async function exportTuitionSummaryReport(req: Request, res: Response) {
-  const userId = req.user!.id;
+  const userId = req.ownerId!;
   const year = resolveYear(req);
 
   const students = await prisma.student.findMany({
@@ -84,7 +84,7 @@ export async function exportTuitionSummaryReport(req: Request, res: Response) {
 }
 
 export async function exportOverdueReport(req: Request, res: Response) {
-  const userId = req.user!.id;
+  const userId = req.ownerId!;
   const year = resolveYear(req);
 
   const rows = await computeOverdueList(userId, year);

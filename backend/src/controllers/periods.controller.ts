@@ -33,7 +33,7 @@ function assertRange(start: Date | null, end: Date | null) {
 }
 
 export async function listPeriods(req: Request, res: Response) {
-  const cls = await assertClass(req.params.id, req.user!.id);
+  const cls = await assertClass(req.params.id, req.ownerId!);
   const periods = await prisma.tuitionPeriod.findMany({
     where: { classId: cls.id },
     orderBy: [{ year: "asc" }, { month: "asc" }],
@@ -42,7 +42,7 @@ export async function listPeriods(req: Request, res: Response) {
 }
 
 export async function createPeriod(req: Request, res: Response) {
-  const cls = await assertClass(req.params.id, req.user!.id);
+  const cls = await assertClass(req.params.id, req.ownerId!);
   const body = req.body ?? {};
   const name = typeof body.name === "string" ? body.name.trim() : "";
   if (!name) throw new AppError("Tên kỳ học phí là bắt buộc.");
@@ -69,7 +69,7 @@ export async function createPeriod(req: Request, res: Response) {
 
 /** Creates the missing calendar-month periods (Tháng 1..12) of a year for a class. */
 export async function generateMonthlyPeriods(req: Request, res: Response) {
-  const cls = await assertClass(req.params.id, req.user!.id);
+  const cls = await assertClass(req.params.id, req.ownerId!);
   const year = Number(req.body?.year);
   if (!Number.isInteger(year) || year < 2000 || year > 3000) throw new AppError("Năm không hợp lệ.");
   const rawDueDay = req.body?.dueDay;
@@ -111,7 +111,7 @@ async function findOwnedPeriod(id: string, userId: string) {
 }
 
 export async function updatePeriod(req: Request, res: Response) {
-  const period = await findOwnedPeriod(req.params.id, req.user!.id);
+  const period = await findOwnedPeriod(req.params.id, req.ownerId!);
   const body = req.body ?? {};
   const data: Record<string, unknown> = {};
 
@@ -144,7 +144,7 @@ export async function updatePeriod(req: Request, res: Response) {
 }
 
 export async function deletePeriod(req: Request, res: Response) {
-  const period = await findOwnedPeriod(req.params.id, req.user!.id);
+  const period = await findOwnedPeriod(req.params.id, req.ownerId!);
   await prisma.tuitionPeriod.delete({ where: { id: period.id } });
   res.status(204).end();
 }

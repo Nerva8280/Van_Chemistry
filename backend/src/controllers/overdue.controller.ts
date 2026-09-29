@@ -49,7 +49,7 @@ export async function computeOverdueList(userId: string, year?: number): Promise
 }
 
 export async function getOverdueList(req: Request, res: Response) {
-  res.json(await computeOverdueList(req.user!.id, resolveYear(req)));
+  res.json(await computeOverdueList(req.ownerId!, resolveYear(req)));
 }
 
 export default { getOverdueList, computeOverdueList };

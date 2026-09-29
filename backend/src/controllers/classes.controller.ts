@@ -25,7 +25,7 @@ function parseSheetName(value: unknown): string | null {
 }
 
 export async function listClasses(req: Request, res: Response) {
-  const userId = req.user!.id;
+  const userId = req.ownerId!;
   const classes = await prisma.class.findMany({
     where: { userId },
     include: COUNTS,
@@ -35,7 +35,7 @@ export async function listClasses(req: Request, res: Response) {
 }
 
 export async function createClass(req: Request, res: Response) {
-  const userId = req.user!.id;
+  const userId = req.ownerId!;
   const { name, defaultTuitionFee, sheetName } = req.body ?? {};
 
   if (!name || typeof name !== "string" || !name.trim()) {
@@ -55,7 +55,7 @@ export async function createClass(req: Request, res: Response) {
 }
 
 export async function updateClass(req: Request, res: Response) {
-  const userId = req.user!.id;
+  const userId = req.ownerId!;
   const { id } = req.params;
   const { name, defaultTuitionFee, sheetName } = req.body ?? {};
 
@@ -90,7 +90,7 @@ export async function updateClass(req: Request, res: Response) {
 }
 
 export async function deleteClass(req: Request, res: Response) {
-  const userId = req.user!.id;
+  const userId = req.ownerId!;
   const { id } = req.params;
 
   const existing = await prisma.class.findFirst({ where: { id, userId } });

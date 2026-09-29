@@ -1,10 +1,19 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/authService';
 import Spinner from '../components/ui/Spinner';
+import Alert from '../components/ui/Alert';
+
+const LOGIN_ERRORS: Record<string, string> = {
+  not_allowed: 'Tài khoản này không có quyền truy cập hệ thống. Vui lòng đăng nhập bằng tài khoản đã được cấp quyền.',
+  auth_failed: 'Đăng nhập không thành công. Vui lòng thử lại.',
+};
 
 export default function Login() {
   const { user, loading } = useAuth();
+  const [params] = useSearchParams();
+  const errorKey = params.get('error');
+  const errorMessage = errorKey ? LOGIN_ERRORS[errorKey] ?? LOGIN_ERRORS.auth_failed : null;
 
   if (loading) {
     return (
@@ -28,6 +37,12 @@ export default function Login() {
           <h1 className="text-xl font-semibold text-slate-900">Hệ thống Quản lý Học phí</h1>
           <p className="mt-1 text-sm text-slate-500">Đăng nhập để tiếp tục quản lý lớp học của bạn</p>
         </div>
+
+        {errorMessage && (
+          <div className="mb-4">
+            <Alert message={errorMessage} />
+          </div>
+        )}
 
         <div className="flex flex-col gap-3">
           <a

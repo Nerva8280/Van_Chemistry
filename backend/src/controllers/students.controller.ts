@@ -42,7 +42,7 @@ async function assertClassOwnership(classId: string, userId: string) {
 }
 
 export async function listStudents(req: Request, res: Response) {
-  const userId = req.user!.id;
+  const userId = req.ownerId!;
   const { classId, search } = req.query as { classId?: string; search?: string };
 
   const where: any = { class: { userId } };
@@ -63,7 +63,7 @@ export async function listStudents(req: Request, res: Response) {
 }
 
 export async function createStudent(req: Request, res: Response) {
-  const userId = req.user!.id;
+  const userId = req.ownerId!;
   const { fullName, classId, parentEmail, parentPhone, monthlyTuitionFee } = req.body ?? {};
 
   if (!fullName || typeof fullName !== "string" || !fullName.trim()) {
@@ -100,7 +100,7 @@ export async function createStudent(req: Request, res: Response) {
 }
 
 export async function updateStudent(req: Request, res: Response) {
-  const userId = req.user!.id;
+  const userId = req.ownerId!;
   const { id } = req.params;
   const { fullName, classId, parentEmail, parentPhone, monthlyTuitionFee, active } = req.body ?? {};
 
@@ -150,7 +150,7 @@ export async function updateStudent(req: Request, res: Response) {
 }
 
 export async function deleteStudent(req: Request, res: Response) {
-  const userId = req.user!.id;
+  const userId = req.ownerId!;
   const { id } = req.params;
 
   const existing = await prisma.student.findFirst({ where: { id, class: { userId } } });
@@ -164,7 +164,7 @@ export async function deleteStudent(req: Request, res: Response) {
 }
 
 export async function importStudents(req: Request, res: Response) {
-  const userId = req.user!.id;
+  const userId = req.ownerId!;
   const file = (req as any).file as Express.Multer.File | undefined;
   const bodyClassId = (req.body?.classId as string | undefined) || undefined;
 
@@ -233,7 +233,7 @@ export async function importStudents(req: Request, res: Response) {
 }
 
 export async function exportStudents(req: Request, res: Response) {
-  const userId = req.user!.id;
+  const userId = req.ownerId!;
   const { classId } = req.query as { classId?: string };
 
   const where: any = { class: { userId } };

@@ -43,7 +43,7 @@ async function listYears(userId: string): Promise<number[]> {
 }
 
 export async function getTuitionGrid(req: Request, res: Response) {
-  const userId = req.user!.id;
+  const userId = req.ownerId!;
   const years = await listYears(userId);
   const year = parseIntParam(req.query.year) ?? years[0] ?? new Date().getFullYear();
   const month = parseIntParam(req.query.month);
@@ -140,7 +140,7 @@ async function findOwnedPayment(paymentId: string, userId: string) {
 }
 
 export async function updatePayment(req: Request, res: Response) {
-  const userId = req.user!.id;
+  const userId = req.ownerId!;
   const existing = await findOwnedPayment(req.params.id, userId);
   const body = req.body ?? {};
 
@@ -166,7 +166,7 @@ export async function updatePayment(req: Request, res: Response) {
 }
 
 export async function bulkMarkPaid(req: Request, res: Response) {
-  const userId = req.user!.id;
+  const userId = req.ownerId!;
   const ids: unknown = req.body?.paymentIds;
   if (!Array.isArray(ids) || ids.length === 0 || ids.some((id) => typeof id !== "string")) {
     throw new AppError("Danh sách khoản học phí không hợp lệ.");
@@ -200,7 +200,7 @@ export async function bulkMarkPaid(req: Request, res: Response) {
 
 /** Enrolls a student in one period of their class (turns a "—" cell into an unpaid one). */
 export async function createPayment(req: Request, res: Response) {
-  const userId = req.user!.id;
+  const userId = req.ownerId!;
   const { studentId, periodId } = req.body ?? {};
   if (typeof studentId !== "string" || typeof periodId !== "string") {
     throw new AppError("Thiếu học sinh hoặc kỳ học phí.");
@@ -219,7 +219,7 @@ export async function createPayment(req: Request, res: Response) {
 
 /** Un-enrolls a student from a period (the cell becomes "—"). */
 export async function deletePayment(req: Request, res: Response) {
-  const userId = req.user!.id;
+  const userId = req.ownerId!;
   const existing = await findOwnedPayment(req.params.id, userId);
   await prisma.tuitionPayment.delete({ where: { id: existing.id } });
   res.status(204).end();

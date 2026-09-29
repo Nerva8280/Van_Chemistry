@@ -1,39 +1,30 @@
-import { Router } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import passport from "../config/passport";
-import {
-  getMe,
-  logout,
-  oauthFailureRedirect,
-  oauthSuccessRedirect,
-} from "../controllers/auth.controller";
+import env from "../config/env";
+import { getMe, logout, oauthFailureRedirect } from "../controllers/auth.controller";
 
 const router = Router();
 
-router.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }));
-
-router.get(
-  "/google/callback",
-  (req, res, next) => {
-    passport.authenticate("google", {
-      failureRedirect: "/api/auth/failure",
-      session: true,
+function oauthCallback(strategy: "google" | "microsoft") {
+  return (req: Request, res: Response, next: NextFunction) => {
+    passport.authenticate(strategy, (err: unknown, user: Express.User | false, info?: { message?: string }) => {
+      if (err || !user) {
+        const reason = !err && info?.message === "not_allowed" ? "not_allowed" : "auth_failed";
+        return res.redirect(`${env.FRONTEND_URL}/login?error=${reason}`);
+      }
+      req.logIn(user, (loginErr) => {
+        if (loginErr) return next(loginErr);
+        res.redirect(`${env.FRONTEND_URL}/dashboard`);
+      });
     })(req, res, next);
-  },
-  oauthSuccessRedirect
-);
+  };
+}
+
+router.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }));
+router.get("/google/callback", oauthCallback("google"));
 
 router.get("/microsoft", passport.authenticate("microsoft", { scope: ["user.read"] }));
-
-router.get(
-  "/microsoft/callback",
-  (req, res, next) => {
-    passport.authenticate("microsoft", {
-      failureRedirect: "/api/auth/failure",
-      session: true,
-    })(req, res, next);
-  },
-  oauthSuccessRedirect
-);
+router.get("/microsoft/callback", oauthCallback("microsoft"));
 
 router.get("/failure", oauthFailureRedirect);
 

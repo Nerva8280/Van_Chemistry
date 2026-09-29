@@ -6,6 +6,11 @@ declare global {
     // req.user is fully typed across controllers/middleware.
     // eslint-disable-next-line @typescript-eslint/no-empty-interface
     interface User extends PrismaUser {}
+
+    interface Request {
+      /** Owner of the data being accessed; set by requireAuth. */
+      ownerId?: string;
+    }
   }
 }
 

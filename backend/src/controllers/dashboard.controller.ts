@@ -10,7 +10,7 @@ function parseIntParam(value: unknown): number | undefined {
 }
 
 export async function getDashboard(req: Request, res: Response) {
-  const userId = req.user!.id;
+  const userId = req.ownerId!;
   const classId = (req.query.classId as string) || undefined;
   const sheet = (req.query.sheet as string) || undefined;
 

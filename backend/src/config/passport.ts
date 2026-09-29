@@ -3,6 +3,7 @@ import { Strategy as GoogleStrategy, Profile as GoogleProfile } from "passport-g
 import { Strategy as MicrosoftStrategy, Profile as MicrosoftProfile } from "passport-microsoft";
 import prisma from "./db";
 import env from "./env";
+import { isEmailAllowed } from "./access";
 
 /**
  * Finds an existing User by (provider, providerId) or by email, otherwise
@@ -55,13 +56,14 @@ if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
         _accessToken: string,
         _refreshToken: string,
         profile: GoogleProfile,
-        done: (error: any, user?: Express.User | false) => void
+        done: (error: any, user?: Express.User | false, info?: { message: string }) => void
       ) => {
         try {
           const email = profile.emails?.[0]?.value;
           if (!email) {
             return done(new Error("Tài khoản Google không có địa chỉ email."));
           }
+          if (!isEmailAllowed(email)) return done(null, false, { message: "not_allowed" });
           const user = await upsertUserFromProfile({
             provider: "google",
             providerId: profile.id,
@@ -97,7 +99,7 @@ if (env.MICROSOFT_CLIENT_ID && env.MICROSOFT_CLIENT_SECRET) {
         _accessToken: string,
         _refreshToken: string,
         profile: MicrosoftProfile,
-        done: (error: any, user?: Express.User | false) => void
+        done: (error: any, user?: Express.User | false, info?: { message: string }) => void
       ) => {
         try {
           const email =
@@ -106,6 +108,7 @@ if (env.MICROSOFT_CLIENT_ID && env.MICROSOFT_CLIENT_SECRET) {
           if (!email) {
             return done(new Error("Tài khoản Microsoft không có địa chỉ email."));
           }
+          if (!isEmailAllowed(email)) return done(null, false, { message: "not_allowed" });
           const user = await upsertUserFromProfile({
             provider: "microsoft",
             providerId: profile.id,

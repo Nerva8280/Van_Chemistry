@@ -22,7 +22,7 @@ export async function importTuition(req: Request, res: Response) {
 
   let result;
   try {
-    result = await previewTuitionImport(req.user!.id, file.buffer, opts);
+    result = await previewTuitionImport(req.ownerId!, file.buffer, opts);
   } catch (err: any) {
     throw new AppError(`Không đọc được file: ${err?.message ?? "lỗi không xác định"}`);
   }
@@ -32,7 +32,7 @@ export async function importTuition(req: Request, res: Response) {
     return res.json({ committed: false, preview });
   }
   if (plans.length === 0) throw new AppError("File không có học sinh nào để nhập.");
-  const imported = await commitTuitionImport(req.user!.id, plans);
+  const imported = await commitTuitionImport(req.ownerId!, plans);
   res.json({ committed: true, preview, imported });
 }
 

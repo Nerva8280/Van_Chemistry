@@ -1,9 +1,11 @@
 import { Request, Response } from "express";
 import env from "../config/env";
+import { isEmailAllowed } from "../config/access";
 
 export function getMe(req: Request, res: Response) {
-  if (req.isAuthenticated && req.isAuthenticated() && req.user) {
-    return res.json({ user: req.user });
+  if (req.isAuthenticated && req.isAuthenticated() && req.user && isEmailAllowed(req.user.email)) {
+    const { id, email, name, avatarUrl, provider, createdAt } = req.user;
+    return res.json({ user: { id, email, name, avatarUrl, provider, createdAt } });
   }
   return res.json({ user: null });
 }
@@ -23,8 +25,4 @@ export function oauthFailureRedirect(_req: Request, res: Response) {
   res.redirect(`${env.FRONTEND_URL}/login?error=auth_failed`);
 }
 
-export function oauthSuccessRedirect(_req: Request, res: Response) {
-  res.redirect(`${env.FRONTEND_URL}/dashboard`);
-}
-
-export default { getMe, logout, oauthFailureRedirect, oauthSuccessRedirect };
+export default { getMe, logout, oauthFailureRedirect };
