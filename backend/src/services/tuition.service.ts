@@ -77,8 +77,17 @@ export async function createPaymentsForNewStudent(
   });
 }
 
-export async function createPaymentsForNewPeriod(db: Db, params: { periodId: string; classId: string }) {
-  const students = await db.student.findMany({ where: { classId: params.classId, active: true } });
+export async function createPaymentsForNewPeriod(
+  db: Db,
+  params: { periodId: string; classId: string; onlyStudentIds?: string[] }
+) {
+  const students = await db.student.findMany({
+    where: {
+      classId: params.classId,
+      active: true,
+      ...(params.onlyStudentIds ? { id: { in: params.onlyStudentIds } } : {}),
+    },
+  });
   if (students.length === 0) return;
   await db.tuitionPayment.createMany({
     data: students.map((s) => ({

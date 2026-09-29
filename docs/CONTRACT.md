@@ -6,7 +6,7 @@ Tiền là số nguyên VNĐ (đồng). Ngày là chuỗi ISO; frontend hiển t
 
 ## 1. Khái niệm
 
-- **Lớp (Class)**: có `sheetName` (sheet nguồn khi nhập Excel, có thể null) và `defaultTuitionFee`.
+- **Lớp (Class)**: có `name` và `defaultTuitionFee`.
 - **Kỳ học phí (TuitionPeriod)**: thuộc một lớp, ví dụ "Tháng 7 (15/6-14/7)". Có `name` ("Tháng 7"), `year`, `month`
   (1-12, để xếp cột thẳng hàng giữa các lớp), `startDate`, `endDate` (có thể null), `dueDate` (hạn đóng).
   Mỗi lớp có tối đa một kỳ cho mỗi (year, month).
@@ -27,9 +27,9 @@ Tiền là số nguyên VNĐ (đồng). Ngày là chuỗi ISO; frontend hiển t
 ## 3. Lớp học
 
 - `GET /api/classes` → `Class[]`
-  `Class = { id, name, sheetName: string|null, defaultTuitionFee, userId, createdAt, studentCount, periodCount }`
-- `POST /api/classes` body `{ name, defaultTuitionFee, sheetName? }` → `Class`
-- `PUT /api/classes/:id` body `{ name?, defaultTuitionFee?, sheetName? }` → `Class`
+  `Class = { id, name, defaultTuitionFee, userId, createdAt, studentCount, periodCount }`
+- `POST /api/classes` body `{ name, defaultTuitionFee }` → `Class`
+- `PUT /api/classes/:id` body `{ name?, defaultTuitionFee? }` → `Class`
 - `DELETE /api/classes/:id` → `204`; `409` nếu lớp còn học sinh.
 
 ## 4. Kỳ học phí
@@ -37,8 +37,9 @@ Tiền là số nguyên VNĐ (đồng). Ngày là chuỗi ISO; frontend hiển t
 `Period = { id, classId, name, year, month, startDate: string|null, endDate: string|null, dueDate }`
 
 - `GET /api/classes/:id/periods` → `Period[]`
-- `POST /api/classes/:id/periods` body `{ name, year, month, startDate?, endDate?, dueDate? }` → `Period`
-  (dueDate mặc định = endDate). Tự tạo khoản học phí (chưa đóng) cho mọi học sinh đang học của lớp. `409` nếu trùng tháng.
+- `POST /api/classes/:id/periods` body `{ name, year, month, startDate?, endDate?, dueDate?, enroll? }` → `Period`
+  (dueDate để trống = chưa đặt hạn). `enroll`: `"all"` (mặc định, mọi học sinh đang học), `"previous"` (chỉ học sinh
+  có trong kỳ liền trước của lớp), `"none"` (chưa thêm ai). `409` nếu trùng tháng.
 - `POST /api/classes/:id/periods/generate` body `{ year, dueDay? }` → `{ created: number, periods: Period[] }`
   Tạo các kỳ "Tháng 1".."Tháng 12" còn thiếu của năm đó (dueDay 1-28, mặc định 5).
 - `PUT /api/periods/:id` body `{ name?, year?, month?, startDate?, endDate?, dueDate? }` → `Period`
@@ -59,16 +60,18 @@ Tiền là số nguyên VNĐ (đồng). Ngày là chuỗi ISO; frontend hiển t
 
 ## 6. Bảng học phí
 
-`GET /api/tuition?year=&month=&classId=&sheet=&status=&search=`
-(`status` ∈ paid|partial|overdue|unpaid; mặc định `year` = năm mới nhất có dữ liệu)
+`GET /api/tuition?year=&quarter=&classId=&status=&search=`
+Mỗi trang là một quý: `quarter` 1 = Tháng 1-3, 2 = Tháng 4-6, 3 = Tháng 7-9, 4 = Tháng 10-12.
+Mặc định là năm và quý hiện tại. `status` ∈ paid|partial|overdue|unpaid.
 
 ```
 {
   year: number,
-  years: number[],              // các năm có dữ liệu, mới nhất trước
-  sheets: string[],             // các sheetName đang có
-  columns: { year, month }[],   // các cột tháng, tăng dần
-  classes: { id, name, sheetName, periods: Period[] }[],
+  quarter: number,
+  years: number[],              // năm có dữ liệu + năm nay + năm sau, mới nhất trước
+  columns: { year, month }[],   // luôn đủ 3 tháng của quý, kể cả tháng chưa có kỳ
+  classes: { id, name, periods: Period[], previousPeriod: Period | null }[],
+                                // previousPeriod: kỳ gần nhất trước quý này (để điền sẵn ngày bắt đầu kỳ mới)
   students: {
     id, stt, fullName, classId, monthlyTuitionFee, active,
     payments: Payment[]
@@ -93,7 +96,7 @@ Khi lọc `status`, chỉ trả về học sinh có ít nhất một khoản đ�
 
 ## 7. Dashboard
 
-`GET /api/dashboard?year=&month=&classId=&sheet=`
+`GET /api/dashboard?year=&month=&classId=`
 Khi có `month`, các tổng trong `summary` chỉ tính riêng tháng đó; không có thì tính cả năm.
 ```
 {
@@ -125,8 +128,7 @@ Nếu không truyền `month`, `selectedMonth` = tháng mới nhất đã bắt 
 ```
 Preview = {
   year, unit,
-  sheets: { name, classes: string[], studentCount }[],
-  classes: { name, sheetName, exists, defaultFee, studentCount,
+  classes: { name, exists, defaultFee, studentCount,
              periods: { name, header, year, month, startDate, endDate, dueDate,
                         enrolled, paid, partial, unpaid, collected }[] }[],
   totals: { sheet, label, computed, manual: number|null, match: boolean|null }[],

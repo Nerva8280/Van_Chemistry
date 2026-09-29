@@ -20,7 +20,6 @@ erDiagram
     CLASS {
         uuid id PK
         string name
-        string sheetName "sheet nguồn khi nhập Excel"
         decimal defaultTuitionFee
         uuid userId FK
     }

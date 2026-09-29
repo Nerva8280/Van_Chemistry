@@ -3,7 +3,7 @@ import { Payment, PaymentStatus, TuitionGridResponse } from '../types';
 
 export interface TuitionGridParams {
   year?: number;
-  month?: number;
+  quarter?: number;
   classId?: string;
   status?: PaymentStatus;
   search?: string;
@@ -19,7 +19,7 @@ export const tuitionService = {
     const res = await api.get<TuitionGridResponse>('/tuition', {
       params: {
         year: params.year || undefined,
-        month: params.month || undefined,
+        quarter: params.quarter || undefined,
         classId: params.classId || undefined,
         status: params.status || undefined,
         search: params.search?.trim() || undefined,

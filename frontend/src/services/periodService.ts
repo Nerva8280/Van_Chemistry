@@ -1,6 +1,9 @@
 import api from './api';
 import { Period } from '../types';
 
+/** Ai được thêm vào kỳ mới: tất cả học sinh, chỉ học sinh của kỳ trước, hoặc chưa ai. */
+export type EnrollMode = 'all' | 'previous' | 'none';
+
 export interface PeriodPayload {
   name: string;
   year: number;
@@ -9,6 +12,7 @@ export interface PeriodPayload {
   startDate?: string | null;
   endDate?: string | null;
   dueDate?: string | null;
+  enroll?: EnrollMode;
 }
 
 export const periodService = {

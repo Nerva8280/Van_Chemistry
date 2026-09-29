@@ -6,6 +6,7 @@ import EmptyState from '../components/ui/EmptyState';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import PaymentEditModal, { PaymentEditTarget, paidDateText } from '../components/tuition/PaymentEditModal';
 import DueDateModal, { DueDateEntry } from '../components/tuition/DueDateModal';
+import CreatePeriodsModal, { CreatePeriodCandidate } from '../components/tuition/CreatePeriodsModal';
 import { tuitionService } from '../services/tuitionService';
 import { classService } from '../services/classService';
 import { getErrorMessage } from '../services/api';
@@ -64,9 +65,8 @@ function cellTooltip(payment: Payment, period: Period | undefined): string {
   return lines.join('\n');
 }
 
-/** Tháng mặc định cho thao tác hàng loạt: tháng đang lọc, hoặc tháng gần nhất đã bắt đầu. */
-function defaultBulkMonth(columns: TuitionColumn[], filterMonth: string): string {
-  if (filterMonth && columns.some((c) => String(c.month) === filterMonth)) return filterMonth;
+/** Tháng mặc định cho thao tác hàng loạt: tháng gần nhất đã bắt đầu. */
+function defaultBulkMonth(columns: TuitionColumn[]): string {
   if (columns.length === 0) return '';
   const now = new Date();
   const started = columns.filter(
@@ -76,17 +76,28 @@ function defaultBulkMonth(columns: TuitionColumn[], filterMonth: string): string
   return String(pick.month);
 }
 
+const QUARTER_LABELS = ['Tháng 1–3', 'Tháng 4–6', 'Tháng 7–9', 'Tháng 10–12'];
+
+/** Kỳ gần nhất của lớp trước tháng `col` (trong trang đang xem hoặc trước đó). */
+function previousPeriodEnd(cls: TuitionGridClass, col: TuitionColumn): string | null {
+  const inPage = cls.periods
+    .filter((p) => p.year === col.year && p.month < col.month)
+    .sort((a, b) => b.month - a.month)[0];
+  const prev = inPage ?? cls.previousPeriod;
+  return prev ? prev.endDate ?? prev.dueDate ?? prev.startDate : null;
+}
+
 export default function Tuition() {
-  const [year, setYear] = useState<number | null>(null);
+  const today = new Date();
+  const [year, setYear] = useState(today.getFullYear());
+  const [quarter, setQuarter] = useState(Math.floor(today.getMonth() / 3) + 1);
   const [classId, setClassId] = useState('');
-  const [month, setMonth] = useState('');
   const [status, setStatus] = useState<'' | PaymentStatus>('');
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 350);
 
   const [data, setData] = useState<TuitionGridResponse | null>(null);
   const [allClasses, setAllClasses] = useState<Class[]>([]);
-  const [monthOptions, setMonthOptions] = useState<TuitionColumn[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
@@ -96,6 +107,7 @@ export default function Tuition() {
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [editTarget, setEditTarget] = useState<PaymentEditTarget | null>(null);
   const [dueColumn, setDueColumn] = useState<TuitionColumn | null>(null);
+  const [createTarget, setCreateTarget] = useState<{ column: TuitionColumn; onlyClassId: string | null } | null>(null);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkMonth, setBulkMonth] = useState('');
@@ -108,21 +120,20 @@ export default function Tuition() {
     setError('');
     try {
       const res = await tuitionService.grid({
-        year: year ?? undefined,
-        month: month ? Number(month) : undefined,
+        year,
+        quarter,
         classId,
         status: status || undefined,
         search: debouncedSearch,
       });
       if (id !== requestId.current) return;
       setData(res);
-      if (!month) setMonthOptions(res.columns);
     } catch (err) {
       if (id === requestId.current) setError(getErrorMessage(err, 'Không thể tải bảng học phí.'));
     } finally {
       if (id === requestId.current) setLoading(false);
     }
-  }, [year, month, classId, status, debouncedSearch]);
+  }, [year, quarter, classId, status, debouncedSearch]);
 
   useEffect(() => {
     load();
@@ -141,7 +152,7 @@ export default function Tuition() {
 
   useEffect(() => {
     setBulkMonth((prev) =>
-      prev && columns.some((c) => String(c.month) === prev) ? prev : defaultBulkMonth(columns, month)
+      prev && columns.some((c) => String(c.month) === prev) ? prev : defaultBulkMonth(columns)
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
@@ -201,11 +212,32 @@ export default function Tuition() {
       .filter((e): e is DueDateEntry => !!e.period);
   }, [dueColumn, shownClasses]);
 
+  /** Lớp đang hiển thị chưa có kỳ trong tháng `col` (để tạo kỳ mới). */
+  function missingClasses(col: TuitionColumn): CreatePeriodCandidate[] {
+    return shownClasses
+      .filter((c) => !periodOf(c, col))
+      .map((c) => ({ classId: c.id, className: c.name, previousEnd: previousPeriodEnd(c, col) }));
+  }
+
+  const createCandidates = useMemo(
+    () => (createTarget ? missingClasses(createTarget.column) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [createTarget, shownClasses]
+  );
+  const pageHasPeriods = shownClasses.some((c) => c.periods.length > 0);
+
   const classOptions: { id: string; name: string }[] = allClasses.length ? allClasses : data?.classes ?? [];
 
-  const yearOptions = data?.years?.length ? data.years : [year ?? new Date().getFullYear()];
-  const yearValue = year ?? data?.year ?? new Date().getFullYear();
-  const hasFilters = !!(classId || month || status || search);
+  const yearOptions = data?.years?.length ? data.years : [year];
+  const hasFilters = !!(classId || status || search);
+
+  function goToPage(nextYear: number, nextQuarter: number) {
+    setSelected(new Set());
+    setYear(nextYear);
+    setQuarter(nextQuarter);
+  }
+  const goPrev = () => (quarter === 1 ? goToPage(year - 1, 4) : goToPage(year, quarter - 1));
+  const goNext = () => (quarter === 4 ? goToPage(year + 1, 1) : goToPage(year, quarter + 1));
 
   // ---------- Cập nhật dữ liệu cục bộ ----------
 
@@ -351,7 +383,6 @@ export default function Tuition() {
 
   function resetFilters() {
     setClassId('');
-    setMonth('');
     setStatus('');
     setSearch('');
   }
@@ -488,7 +519,6 @@ export default function Tuition() {
     confirmLabel = 'Đánh dấu đã đóng';
   }
 
-  const totalCols = 3 + columns.length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -497,12 +527,40 @@ export default function Tuition() {
           <h1 className="text-xl font-semibold text-slate-900">Học phí</h1>
           {loading && data && <Spinner size={18} />}
         </div>
-        {data && (
-          <p className="text-sm text-slate-500">
-            {visibleStudents.length} học sinh · {columns.length} tháng
-          </p>
-        )}
+        {data && <p className="text-sm text-slate-500">{visibleStudents.length} học sinh</p>}
       </div>
+
+      {/* Phân trang: mỗi trang 3 tháng, một năm 4 trang */}
+      <nav className="card flex flex-wrap items-center gap-2 p-3" aria-label="Chọn quý">
+        <button type="button" className="btn-secondary px-3" onClick={goPrev} aria-label="Trang trước">
+          ‹ Trước
+        </button>
+        <div className="flex flex-wrap gap-1">
+          {QUARTER_LABELS.map((label, i) => {
+            const q = i + 1;
+            const active = q === quarter;
+            return (
+              <button
+                key={q}
+                type="button"
+                onClick={() => goToPage(year, q)}
+                aria-current={active ? 'page' : undefined}
+                className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  active ? 'bg-primary-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+        <button type="button" className="btn-secondary px-3" onClick={goNext} aria-label="Trang sau">
+          Sau ›
+        </button>
+        <span className="ml-auto text-sm font-semibold text-slate-800">
+          {QUARTER_LABELS[quarter - 1]} / {year}
+        </span>
+      </nav>
 
       {/* Bộ lọc */}
       <div className="card flex flex-wrap items-end gap-3 p-4">
@@ -513,11 +571,8 @@ export default function Tuition() {
           <select
             id="f-year"
             className="input w-auto"
-            value={yearValue}
-            onChange={(e) => {
-              setYear(Number(e.target.value));
-              setMonth('');
-            }}
+            value={year}
+            onChange={(e) => goToPage(Number(e.target.value), quarter)}
           >
             {yearOptions.map((y) => (
               <option key={y} value={y}>
@@ -535,19 +590,6 @@ export default function Tuition() {
             {classOptions.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="label text-xs" htmlFor="f-month">
-            Tháng
-          </label>
-          <select id="f-month" className="input w-auto" value={month} onChange={(e) => setMonth(e.target.value)}>
-            <option value="">Tất cả</option>
-            {monthOptions.map((c) => (
-              <option key={colKey(c)} value={c.month}>
-                Tháng {c.month}
               </option>
             ))}
           </select>
@@ -605,6 +647,12 @@ export default function Tuition() {
 
       {error && <Alert message={error} />}
       {info && <Alert variant="info" message={info} />}
+      {data && !loading && visibleStudents.length > 0 && !pageHasPeriods && (
+        <Alert
+          variant="info"
+          message={`${QUARTER_LABELS[quarter - 1]}/${year} chưa có kỳ học phí nào. Bấm "+ Tạo kỳ" dưới tên tháng để tạo kỳ cho các lớp.`}
+        />
+      )}
 
       {/* Thanh thao tác hàng loạt */}
       {selectedVisible.length > 0 && (
@@ -640,28 +688,20 @@ export default function Tuition() {
           <div className="p-6">
             <EmptyState message="Không tải được bảng học phí." />
           </div>
-        ) : columns.length === 0 ? (
+        ) : data.classes.length === 0 ? (
           <div className="flex flex-col items-center gap-3 p-6">
-            <EmptyState
-              message={
-                hasFilters
-                  ? `Không có kỳ học phí nào phù hợp với bộ lọc trong năm ${data.year}.`
-                  : `Chưa có kỳ học phí nào trong năm ${data.year}.`
-              }
-            />
-            {!hasFilters && (
-              <p className="text-sm text-slate-500">
-                Hãy vào{' '}
-                <Link to="/classes" className="font-medium text-primary-600 hover:underline">
-                  Lớp học
-                </Link>{' '}
-                để tạo kỳ học phí, hoặc{' '}
-                <Link to="/import" className="font-medium text-primary-600 hover:underline">
-                  Nhập dữ liệu
-                </Link>{' '}
-                từ file Excel.
-              </p>
-            )}
+            <EmptyState message="Chưa có lớp học nào." />
+            <p className="text-sm text-slate-500">
+              Hãy vào{' '}
+              <Link to="/classes" className="font-medium text-primary-600 hover:underline">
+                Lớp học
+              </Link>{' '}
+              để thêm lớp, hoặc{' '}
+              <Link to="/import" className="font-medium text-primary-600 hover:underline">
+                Nhập dữ liệu
+              </Link>{' '}
+              từ file Excel.
+            </p>
           </div>
         ) : visibleStudents.length === 0 ? (
           <div className="p-6">
@@ -716,6 +756,16 @@ export default function Tuition() {
                             {due.text}
                           </button>
                         )}
+                        {missingClasses(col).length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setCreateTarget({ column: col, onlyClassId: null })}
+                            className="mt-0.5 -mx-1 block whitespace-nowrap rounded px-1 text-[11px] font-medium text-success-700 hover:bg-success-50"
+                            title={`Tạo kỳ học phí Tháng ${col.month}/${col.year} cho các lớp chưa có`}
+                          >
+                            + Tạo kỳ
+                          </button>
+                        )}
                       </th>
                     );
                   })}
@@ -744,7 +794,20 @@ export default function Tuition() {
                               <span className="shrink-0 text-xs text-slate-500">{g.students.length} HS</span>
                             </label>
                           </td>
-                          <td colSpan={totalCols - 3} className="border-b border-slate-200 bg-slate-100" />
+                          {columns.map((col) => (
+                            <td key={colKey(col)} className="border-b border-l border-slate-200 bg-slate-100 px-2 py-1">
+                              {!periodOf(g.cls, col) && (
+                                <button
+                                  type="button"
+                                  onClick={() => setCreateTarget({ column: col, onlyClassId: g.cls.id })}
+                                  className="whitespace-nowrap rounded px-1 text-[11px] font-medium text-success-700 hover:bg-success-50"
+                                  title={`Tạo kỳ Tháng ${col.month}/${col.year} cho ${g.cls.name}`}
+                                >
+                                  + Tạo kỳ
+                                </button>
+                              )}
+                            </td>
+                          ))}
                         </tr>,
                         ...g.students.map((s) => renderStudentRow(s, g.cls)),
                       ];
@@ -777,6 +840,20 @@ export default function Tuition() {
             load();
           }
           if (done) setDueColumn(null);
+        }}
+      />
+
+      <CreatePeriodsModal
+        column={createTarget?.column ?? null}
+        candidates={createCandidates}
+        onlyClassId={createTarget?.onlyClassId ?? null}
+        onClose={() => setCreateTarget(null)}
+        onCreated={(n, done) => {
+          if (n > 0) {
+            setInfo(`Đã tạo kỳ học phí cho ${n} lớp.`);
+            load();
+          }
+          if (done) setCreateTarget(null);
         }}
       />
 

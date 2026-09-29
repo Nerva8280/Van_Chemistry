@@ -51,6 +51,10 @@ export async function createPeriod(req: Request, res: Response) {
   const endDate = parseDate(body.endDate, "Ngày kết thúc", false);
   const dueDate = parseDate(body.dueDate, "Hạn đóng", false);
   assertRange(startDate, endDate);
+  // Who is enrolled in the new period: every active student (default), only those enrolled
+  // in the class's previous period, or nobody yet.
+  const enroll = body.enroll ?? "all";
+  if (!["all", "previous", "none"].includes(enroll)) throw new AppError("Lựa chọn thêm học sinh không hợp lệ.");
 
   const exists = await prisma.tuitionPeriod.findUnique({
     where: { classId_year_month: { classId: cls.id, year, month } },
@@ -58,10 +62,21 @@ export async function createPeriod(req: Request, res: Response) {
   if (exists) throw new AppError(`Lớp này đã có kỳ học phí cho tháng ${month}/${year}.`, 409);
 
   const period = await prisma.$transaction(async (tx) => {
+    let onlyStudentIds: string[] | undefined;
+    if (enroll === "previous") {
+      const prev = await tx.tuitionPeriod.findFirst({
+        where: { classId: cls.id, OR: [{ year: { lt: year } }, { year, month: { lt: month } }] },
+        orderBy: [{ year: "desc" }, { month: "desc" }],
+        include: { payments: { select: { studentId: true } } },
+      });
+      onlyStudentIds = prev ? prev.payments.map((p) => p.studentId) : [];
+    }
     const created = await tx.tuitionPeriod.create({
       data: { classId: cls.id, name, year, month, startDate, endDate, dueDate },
     });
-    await createPaymentsForNewPeriod(tx, { periodId: created.id, classId: cls.id });
+    if (enroll !== "none") {
+      await createPaymentsForNewPeriod(tx, { periodId: created.id, classId: cls.id, onlyStudentIds });
+    }
     return created;
   });
   res.status(201).json(serializePeriod(period));

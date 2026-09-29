@@ -31,22 +31,26 @@ function parseDateInput(value: unknown, field: string): Date | null {
   return d;
 }
 
-/** Years that have at least one period, newest first; used to populate the year filter. */
+/** Years with data plus this year and next, newest first, so upcoming months can be planned. */
 async function listYears(userId: string): Promise<number[]> {
   const rows = await prisma.tuitionPeriod.findMany({
     where: { class: { userId } },
     distinct: ["year"],
     select: { year: true },
-    orderBy: { year: "desc" },
   });
-  return rows.map((r) => r.year);
+  const now = new Date().getFullYear();
+  return [...new Set([...rows.map((r) => r.year), now, now + 1])].sort((a, b) => b - a);
 }
 
+/** The grid shows one quarter (3 months) per page: quarter 1 = Tháng 1-3, ... quarter 4 = Tháng 10-12. */
 export async function getTuitionGrid(req: Request, res: Response) {
   const userId = req.ownerId!;
+  const today = new Date();
   const years = await listYears(userId);
-  const year = parseIntParam(req.query.year) ?? years[0] ?? new Date().getFullYear();
-  const month = parseIntParam(req.query.month);
+  const year = parseIntParam(req.query.year) ?? today.getFullYear();
+  const q = parseIntParam(req.query.quarter);
+  const quarter = q && q >= 1 && q <= 4 ? q : Math.floor(today.getMonth() / 3) + 1;
+  const months = [quarter * 3 - 2, quarter * 3 - 1, quarter * 3];
   const classId = (req.query.classId as string) || undefined;
   const search = ((req.query.search as string) || "").trim();
   const status = STATUSES.includes(req.query.status as PaymentStatus)
@@ -60,7 +64,7 @@ export async function getTuitionGrid(req: Request, res: Response) {
     where: classWhere,
     include: {
       periods: {
-        where: { year, ...(month ? { month } : {}) },
+        where: { year, month: { in: months } },
         orderBy: [{ year: "asc" }, { month: "asc" }],
       },
     },
@@ -75,7 +79,7 @@ export async function getTuitionGrid(req: Request, res: Response) {
     where: studentWhere,
     include: {
       payments: {
-        where: { period: { year, ...(month ? { month } : {}) } },
+        where: { period: { year, month: { in: months } } },
         include: { period: true },
       },
     },
@@ -98,24 +102,31 @@ export async function getTuitionGrid(req: Request, res: Response) {
     .filter((s) => !status || s.payments.some((p) => p.status === status))
     .sort((a, b) => (classOrder.get(a.classId)! - classOrder.get(b.classId)!));
 
-  const columnKeys = new Set<string>();
-  for (const c of classes) for (const p of c.periods) columnKeys.add(`${p.year}-${p.month}`);
-  const columns = [...columnKeys]
-    .map((k) => {
-      const [y, m] = k.split("-").map(Number);
-      return { year: y, month: m };
-    })
-    .sort((a, b) => a.year - b.year || a.month - b.month);
+  // Latest period of each class before this page, to prefill the start date of the next one.
+  const earlier = await prisma.tuitionPeriod.findMany({
+    where: {
+      classId: { in: classIds },
+      OR: [{ year: { lt: year } }, { year, month: { lt: months[0] } }],
+    },
+    orderBy: [{ year: "desc" }, { month: "desc" }],
+  });
+  const previousByClass = new Map<string, (typeof earlier)[number]>();
+  for (const p of earlier) if (!previousByClass.has(p.classId)) previousByClass.set(p.classId, p);
 
   res.json({
     year,
-    years: years.length ? years : [year],
-    columns,
-    classes: classes.map((c) => ({
-      id: c.id,
-      name: c.name,
-      periods: c.periods.map(serializePeriod),
-    })),
+    quarter,
+    years: years.includes(year) ? years : [...years, year].sort((a, b) => b - a),
+    columns: months.map((m) => ({ year, month: m })),
+    classes: classes.map((c) => {
+      const prev = previousByClass.get(c.id);
+      return {
+        id: c.id,
+        name: c.name,
+        periods: c.periods.map(serializePeriod),
+        previousPeriod: prev ? serializePeriod(prev) : null,
+      };
+    }),
     students: rows,
   });
 }

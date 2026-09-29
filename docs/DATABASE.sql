@@ -19,7 +19,6 @@ CREATE TABLE "User" (
 CREATE TABLE "Class" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "sheetName" TEXT,
     "defaultTuitionFee" DECIMAL(12,0) NOT NULL,
     "userId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -72,6 +72,8 @@ export interface TuitionGridClass {
   id: string;
   name: string;
   periods: Period[];
+  /** Kỳ gần nhất của lớp trước trang (quý) đang xem. */
+  previousPeriod: Period | null;
 }
 
 export interface TuitionGridStudent {
@@ -86,6 +88,8 @@ export interface TuitionGridStudent {
 
 export interface TuitionGridResponse {
   year: number;
+  /** 1 = Tháng 1-3, 2 = Tháng 4-6, 3 = Tháng 7-9, 4 = Tháng 10-12 */
+  quarter: number;
   years: number[];
   columns: TuitionColumn[];
   classes: TuitionGridClass[];
