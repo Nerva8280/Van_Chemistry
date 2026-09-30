@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import YearSelect from '../components/ui/YearSelect';
 import Spinner from '../components/ui/Spinner';
 import Alert from '../components/ui/Alert';
@@ -50,6 +50,30 @@ export default function Overdue() {
 
   const totalRemaining = rows.reduce((sum, r) => sum + (r.remaining ?? 0), 0);
 
+  const byStudent = useMemo(() => {
+    const map = new Map<
+      string,
+      { studentId: string; studentName: string; className: string; periods: string[]; maxDaysLate: number; total: number }
+    >();
+    for (const r of rows) {
+      const e = map.get(r.studentId) ?? {
+        studentId: r.studentId,
+        studentName: r.studentName,
+        className: r.className,
+        periods: [],
+        maxDaysLate: 0,
+        total: 0,
+      };
+      e.periods.push(r.periodName);
+      e.maxDaysLate = Math.max(e.maxDaysLate, r.daysLate);
+      e.total += r.remaining ?? 0;
+      map.set(r.studentId, e);
+    }
+    return [...map.values()].sort(
+      (a, b) => b.total - a.total || a.className.localeCompare(b.className, 'vi') || a.studentName.localeCompare(b.studentName, 'vi')
+    );
+  }, [rows]);
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -66,9 +90,53 @@ export default function Overdue() {
 
       {!loading && rows.length > 0 && (
         <p className="text-sm text-slate-600">
-          Có <span className="font-semibold">{rows.length}</span> khoản quá hạn, tổng còn thiếu{' '}
-          <span className="font-semibold">{formatCurrency(totalRemaining)}</span>.
+          Năm {year}: <span className="font-semibold">{byStudent.length}</span> học sinh nợ học phí,{' '}
+          <span className="font-semibold">{rows.length}</span> khoản quá hạn, tổng còn thiếu{' '}
+          <span className="font-semibold text-danger-600">{formatCurrency(totalRemaining)}</span>.
         </p>
+      )}
+
+      {!loading && byStudent.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <h2 className="text-sm font-semibold text-slate-800">Tổng nợ theo học sinh (năm {year})</h2>
+          <div className="card overflow-x-auto p-0">
+            <table className="min-w-full divide-y divide-slate-100 text-sm">
+              <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">Học sinh</th>
+                  <th className="px-4 py-3">Lớp</th>
+                  <th className="px-4 py-3">Các kỳ quá hạn</th>
+                  <th className="px-4 py-3 text-right">Số kỳ</th>
+                  <th className="px-4 py-3 text-right">Trễ lâu nhất</th>
+                  <th className="px-4 py-3 text-right">Tổng còn thiếu</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {byStudent.map((s) => (
+                  <tr key={s.studentId} className="hover:bg-slate-50">
+                    <td className="px-4 py-3 font-medium text-slate-800">{s.studentName}</td>
+                    <td className="px-4 py-3 text-slate-600">{s.className}</td>
+                    <td className="px-4 py-3 text-slate-600">{s.periods.join(', ')}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-slate-700">{s.periods.length}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-slate-700">{s.maxDaysLate} ngày</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-semibold text-danger-600">{formatCurrency(s.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-slate-50 text-sm font-semibold text-slate-800">
+                <tr>
+                  <td className="px-4 py-3" colSpan={3}>
+                    Tổng cộng ({byStudent.length} học sinh)
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">{rows.length}</td>
+                  <td className="px-4 py-3" />
+                  <td className="px-4 py-3 text-right tabular-nums text-danger-600">{formatCurrency(totalRemaining)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <h2 className="mt-2 text-sm font-semibold text-slate-800">Chi tiết từng kỳ quá hạn</h2>
+        </div>
       )}
 
       <div className="card overflow-x-auto p-0">
