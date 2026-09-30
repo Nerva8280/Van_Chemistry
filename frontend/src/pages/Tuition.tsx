@@ -88,13 +88,20 @@ function previousPeriodEnd(cls: TuitionGridClass, col: TuitionColumn): string | 
 
 /** Hạn đóng của một kỳ = ngày cuối kỳ. */
 function DueText({ period }: { period: Period }) {
-  return period.endDate ? (
-    <span className="block whitespace-nowrap text-[11px] font-medium text-primary-600" title={`Hạn đóng ${period.name}`}>
-      Hạn: {formatDate(period.endDate)}
-    </span>
-  ) : (
-    <span className="block whitespace-nowrap text-[11px] text-slate-400" title="Kỳ chưa có ngày kết thúc nên chưa có hạn đóng">
-      Chưa có hạn
+  const range = formatShortRange(period.startDate, period.endDate);
+  return (
+    <span className="block" title={periodTitle(period, period.month)}>
+      <span className="block whitespace-nowrap text-[11px] font-semibold text-slate-700">
+        {period.name}
+        {range && <span className="font-normal text-slate-500"> ({range})</span>}
+      </span>
+      {period.endDate ? (
+        <span className="block whitespace-nowrap text-[11px] font-medium text-primary-600">
+          Hạn: {formatDate(period.endDate)}
+        </span>
+      ) : (
+        <span className="block whitespace-nowrap text-[11px] text-slate-400">Chưa có hạn</span>
+      )}
     </span>
   );
 }
