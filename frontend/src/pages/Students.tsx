@@ -256,7 +256,6 @@ export default function Students() {
           <table className="min-w-full divide-y divide-slate-100 text-sm">
             <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-3 text-center">STT</th>
                 <th className="px-4 py-3">Họ và tên</th>
                 <th className="px-4 py-3">Lớp</th>
                 <th className="px-4 py-3">Email phụ huynh</th>
@@ -268,7 +267,6 @@ export default function Students() {
             <tbody className="divide-y divide-slate-100">
               {students.map((student) => (
                 <tr key={student.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 text-center tabular-nums text-slate-500">{student.stt ?? '—'}</td>
                   <td className="px-4 py-3 font-medium text-slate-800">
                     {student.fullName}
                     {!student.active && <span className="ml-1 text-xs font-normal text-slate-400">(đã nghỉ)</span>}

@@ -502,12 +502,7 @@ export default function Tuition() {
           />
         </td>
         <td
-          className={`sticky left-9 z-10 w-10 min-w-[40px] border-b border-slate-100 px-1 text-center text-xs tabular-nums text-slate-500 ${stickyBg}`}
-        >
-          {student.stt ?? ''}
-        </td>
-        <td
-          className={`sticky left-[76px] z-10 w-40 min-w-[160px] max-w-[160px] border-b border-r border-slate-200 px-2 py-1.5 sm:w-52 sm:min-w-[208px] sm:max-w-[208px] ${stickyBg}`}
+          className={`sticky left-9 z-10 w-40 min-w-[160px] max-w-[160px] border-b border-r border-slate-200 px-2 py-1.5 sm:w-52 sm:min-w-[208px] sm:max-w-[208px] ${stickyBg}`}
         >
           <p className="truncate text-sm font-medium text-slate-800" title={student.fullName}>
             {student.fullName}
@@ -769,10 +764,7 @@ export default function Tuition() {
                       title="Chọn tất cả"
                     />
                   </th>
-                  <th className="sticky left-9 top-0 z-30 w-10 min-w-[40px] border-b border-slate-200 bg-slate-50 px-1 py-2 text-center">
-                    STT
-                  </th>
-                  <th className="sticky left-[76px] top-0 z-30 w-40 min-w-[160px] border-b border-r border-slate-200 bg-slate-50 px-2 py-2 sm:w-52 sm:min-w-[208px]">
+                  <th className="sticky left-9 top-0 z-30 w-40 min-w-[160px] border-b border-r border-slate-200 bg-slate-50 px-2 py-2 sm:w-52 sm:min-w-[208px]">
                     Tên học sinh
                   </th>
                   {columns.map((col) => {
@@ -825,7 +817,7 @@ export default function Tuition() {
                       return [
                         <tr key={`h-${g.cls.id}`}>
                           <td
-                            colSpan={3}
+                            colSpan={2}
                             className="sticky left-0 z-10 border-b border-r border-slate-200 bg-slate-100 px-2 py-1.5"
                           >
                             <label className="flex cursor-pointer items-center gap-2">
