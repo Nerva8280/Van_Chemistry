@@ -26,13 +26,24 @@ body {
   border-radius: 9999px;
 }
 
+/* iOS Safari phóng to trang khi focus ô nhập có cỡ chữ < 16px: trên điện thoại ép tối thiểu 16px
+   cho mọi ô nhập (kể cả ô có class text-xs/text-sm). Chỉ áp dụng trên màn hình, không ảnh hưởng in. */
+@media screen and (max-width: 639.98px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range']),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
 
 @layer components {
+  /* Trên điện thoại / màn hình cảm ứng: nút cao tối thiểu 40px cho dễ bấm (desktop giữ nguyên). */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 max-sm:min-h-[40px] [@media(pointer:coarse)]:min-h-[40px];
   }
   .btn-primary {
     @apply btn bg-primary-500 text-white hover:bg-primary-600;
@@ -44,7 +55,8 @@ body {
     @apply btn bg-danger-500 text-white hover:bg-danger-600;
   }
   .input {
-    @apply w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100;
+    /* 16px dưới sm để iOS Safari không tự phóng to khi chạm vào ô nhập. */
+    @apply w-full rounded-lg border border-slate-300 px-3 py-2 text-base sm:text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100;
   }
   .label {
     @apply mb-1 block text-sm font-medium text-slate-700;

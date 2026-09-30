@@ -85,7 +85,7 @@ export default function ExamPaper({
                     <Badge color="orange">Đã sửa riêng cho mã đề này</Badge>
                     <button
                       type="button"
-                      className="font-medium text-primary-600 hover:underline"
+                      className="ex-tap font-medium text-primary-600 hover:underline"
                       onClick={() => onClearOverride?.(q)}
                     >
                       Bỏ sửa riêng

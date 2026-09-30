@@ -210,12 +210,12 @@ export default function PeriodsModal({ cls, onClose, onChanged }: Props) {
                   {periods.map((p) => (
                     <tr key={p.id} className="hover:bg-slate-50">
                       <td className="px-3 py-2 font-medium text-slate-800">{p.name}</td>
-                      <td className="px-3 py-2 tabular-nums text-slate-600">
+                      <td className="whitespace-nowrap px-3 py-2 tabular-nums text-slate-600">
                         {p.month}/{p.year}
                       </td>
-                      <td className="px-3 py-2 text-slate-600">{formatDate(p.startDate) || '—'}</td>
-                      <td className="px-3 py-2 text-slate-600">{formatDate(p.endDate) || '—'}</td>
-                      <td className="px-3 py-2">
+                      <td className="whitespace-nowrap px-3 py-2 text-slate-600">{formatDate(p.startDate) || '—'}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-slate-600">{formatDate(p.endDate) || '—'}</td>
+                      <td className="whitespace-nowrap px-3 py-2">
                         <div className="flex justify-end gap-2">
                           <button type="button" className="btn-secondary px-3 py-1" onClick={() => openEdit(p)}>
                             Sửa

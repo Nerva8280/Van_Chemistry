@@ -38,7 +38,7 @@ export default function App() {
   return (
     <AuthProvider>
       {IS_TEST && (
-        <div className="no-print sticky top-0 z-50 bg-warning-500 px-4 py-1.5 text-center text-sm font-semibold text-slate-900">
+        <div className="no-print print:hidden bg-warning-500 px-4 py-1.5 text-center text-sm font-semibold text-slate-900">
           MÔI TRƯỜNG TEST: dữ liệu ở đây là bản sao, sửa hay xóa không ảnh hưởng dữ liệu thật.
         </div>
       )}

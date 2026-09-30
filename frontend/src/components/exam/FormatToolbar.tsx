@@ -93,7 +93,7 @@ function runCommand(cmd: 'bold' | 'italic') {
 /** Thanh nút định dạng cho chữ đang chọn trong ô sửa (chỉ số dưới/trên, đậm, nghiêng). */
 export default function FormatToolbar() {
   const btn =
-    'inline-flex h-8 min-w-[2.25rem] items-center justify-center rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-700 hover:bg-slate-50';
+    'inline-flex h-8 min-w-[2.25rem] items-center justify-center rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-700 hover:bg-slate-50 [@media(pointer:coarse)]:h-10 [@media(pointer:coarse)]:min-w-[2.5rem]';
   return (
     <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-lg bg-slate-100/95 px-3 py-2 text-xs text-slate-600 backdrop-blur">
       <span>Bôi đen chữ trong ô rồi bấm:</span>

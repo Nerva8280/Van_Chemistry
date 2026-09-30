@@ -118,7 +118,7 @@ export default function ContentStep({ data, update }: ContentStepProps) {
             />
             <button
               type="button"
-              className="no-print shrink-0 font-sans text-xs text-slate-400 opacity-0 hover:text-danger-600 group-hover:opacity-100"
+              className="ex-tap no-print shrink-0 font-sans text-xs text-slate-400 opacity-0 hover:text-danger-600 focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
               onClick={() => updateDoc((dd) => ({ ...dd, headerHtml: dd.headerHtml.filter((_, j) => j !== i) }))}
               title="Xóa dòng này"
             >
@@ -129,7 +129,7 @@ export default function ContentStep({ data, update }: ContentStepProps) {
         <div>
           <button
             type="button"
-            className="font-sans text-xs font-medium text-primary-600 hover:underline"
+            className="ex-tap font-sans text-xs font-medium text-primary-600 hover:underline"
             onClick={() => updateDoc((dd) => ({ ...dd, headerHtml: [...dd.headerHtml, '<div></div>'] }))}
           >
             + Thêm dòng
@@ -143,7 +143,7 @@ export default function ContentStep({ data, update }: ContentStepProps) {
             <h2 className="text-base font-semibold text-slate-800">
               {sectionLabel(si)} ({sec.questions.length} câu)
             </h2>
-            <label className="flex items-center gap-2 text-sm text-slate-600">
+            <label className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
               Loại câu hỏi:
               <select
                 className="input w-auto py-1"
@@ -170,7 +170,7 @@ export default function ContentStep({ data, update }: ContentStepProps) {
                 />
                 <button
                   type="button"
-                  className="shrink-0 font-sans text-xs text-slate-400 hover:text-danger-600"
+                  className="ex-tap shrink-0 font-sans text-xs text-slate-400 hover:text-danger-600"
                   onClick={() => updateSection(sec.id, (s) => ({ ...s, titleHtml: null }))}
                 >
                   Bỏ tiêu đề
@@ -208,7 +208,7 @@ export default function ContentStep({ data, update }: ContentStepProps) {
                     {!answered && <Badge color="orange">Chưa chọn đáp án</Badge>}
                     <button
                       type="button"
-                      className="text-xs text-slate-400 hover:text-danger-600"
+                      className="ex-tap text-xs text-slate-400 hover:text-danger-600"
                       onClick={() =>
                         setDeleteTarget({ sectionId: sec.id, questionId: q.id, label: `${sectionLabel(si)}, câu ${qi + 1}` })
                       }
@@ -250,7 +250,7 @@ export default function ContentStep({ data, update }: ContentStepProps) {
                         />
                         <button
                           type="button"
-                          className="shrink-0 px-1 font-sans text-xs text-slate-400 hover:text-danger-600"
+                          className="ex-tap shrink-0 px-1 font-sans text-xs text-slate-400 hover:text-danger-600"
                           onClick={() => removeOption(sec.id, q.id, o.id)}
                           title="Xóa đáp án này"
                         >
@@ -261,7 +261,7 @@ export default function ContentStep({ data, update }: ContentStepProps) {
                     {q.options.length < 8 && (
                       <button
                         type="button"
-                        className="self-start font-sans text-xs font-medium text-primary-600 hover:underline"
+                        className="ex-tap self-start font-sans text-xs font-medium text-primary-600 hover:underline"
                         onClick={() => addOption(sec.id, q.id, sec.kind)}
                       >
                         + Thêm đáp án
@@ -280,7 +280,7 @@ export default function ContentStep({ data, update }: ContentStepProps) {
                           answer: { ...x.answer, tf: { ...(x.answer.tf ?? {}), [o.id]: v === val ? null : val } },
                         }));
                       const pill = (active: boolean, color: string) =>
-                        `rounded-md border px-2 py-0.5 text-xs font-semibold ${
+                        `ex-tap rounded-md border px-2 py-0.5 text-xs font-semibold ${
                           active ? color : 'border-slate-300 bg-white text-slate-500 hover:bg-slate-50'
                         }`;
                       return (
@@ -315,7 +315,7 @@ export default function ContentStep({ data, update }: ContentStepProps) {
                             </button>
                             <button
                               type="button"
-                              className="px-1 text-xs text-slate-400 hover:text-danger-600"
+                              className="ex-tap px-1 text-xs text-slate-400 hover:text-danger-600"
                               onClick={() => removeOption(sec.id, q.id, o.id)}
                               title="Xóa ý này"
                             >
@@ -328,7 +328,7 @@ export default function ContentStep({ data, update }: ContentStepProps) {
                     {q.options.length < 8 && (
                       <button
                         type="button"
-                        className="self-start font-sans text-xs font-medium text-primary-600 hover:underline"
+                        className="ex-tap self-start font-sans text-xs font-medium text-primary-600 hover:underline"
                         onClick={() => addOption(sec.id, q.id, sec.kind)}
                       >
                         + Thêm ý

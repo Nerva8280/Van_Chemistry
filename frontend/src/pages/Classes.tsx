@@ -139,26 +139,64 @@ export default function Classes() {
             <EmptyState message="Chưa có lớp học nào. Hãy thêm lớp học đầu tiên." />
           </div>
         ) : (
-          <table className="min-w-full divide-y divide-slate-100 text-sm">
+          <>
+          {/* Điện thoại: mỗi lớp là một thẻ. */}
+          <ul className="divide-y divide-slate-100 md:hidden">
+            {classes.map((cls) => (
+              <li key={cls.id} className="p-4">
+                <p className="font-semibold text-slate-800">{cls.name}</p>
+                <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div>
+                    <dt className="text-xs text-slate-500">Số học sinh</dt>
+                    <dd className="tabular-nums text-slate-800">{cls.studentCount}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-slate-500">Số kỳ</dt>
+                    <dd className="tabular-nums text-slate-800">{cls.periodCount ?? 0}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-slate-500">Học phí mặc định</dt>
+                    <dd className="whitespace-nowrap tabular-nums text-slate-800">{formatCurrency(cls.defaultTuitionFee)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-slate-500">Ngày tạo</dt>
+                    <dd className="whitespace-nowrap text-slate-600">{formatDate(cls.createdAt)}</dd>
+                  </div>
+                </dl>
+                <div className="mt-3 flex gap-2">
+                  <button type="button" className="btn-secondary min-h-[40px] flex-1 px-3" onClick={() => setPeriodsClass(cls)}>
+                    Kỳ học phí
+                  </button>
+                  <button type="button" className="btn-secondary min-h-[40px] flex-1 px-3" onClick={() => openEdit(cls)}>
+                    Sửa
+                  </button>
+                  <button type="button" className="btn-danger min-h-[40px] flex-1 px-3" onClick={() => setDeleteTarget(cls)}>
+                    Xóa
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <table className="hidden min-w-full divide-y divide-slate-100 text-sm md:table">
             <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-3">Tên lớp</th>
-                <th className="px-4 py-3">Số học sinh</th>
-                <th className="px-4 py-3">Số kỳ</th>
-                <th className="px-4 py-3">Học phí mặc định</th>
-                <th className="px-4 py-3">Ngày tạo</th>
-                <th className="px-4 py-3 text-right">Thao tác</th>
+                <th className="px-3 py-3 lg:px-4">Tên lớp</th>
+                <th className="px-3 py-3 lg:px-4">Số học sinh</th>
+                <th className="px-3 py-3 lg:px-4">Số kỳ</th>
+                <th className="px-3 py-3 lg:px-4">Học phí mặc định</th>
+                <th className="px-3 py-3 lg:px-4">Ngày tạo</th>
+                <th className="px-3 py-3 text-right lg:px-4">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {classes.map((cls) => (
                 <tr key={cls.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 font-medium text-slate-800">{cls.name}</td>
-                  <td className="px-4 py-3 tabular-nums">{cls.studentCount}</td>
-                  <td className="px-4 py-3 tabular-nums">{cls.periodCount ?? 0}</td>
-                  <td className="px-4 py-3 tabular-nums">{formatCurrency(cls.defaultTuitionFee)}</td>
-                  <td className="px-4 py-3 text-slate-500">{formatDate(cls.createdAt)}</td>
-                  <td className="px-4 py-3">
+                  <td className="whitespace-nowrap px-3 py-3 font-medium text-slate-800 lg:px-4">{cls.name}</td>
+                  <td className="px-3 py-3 tabular-nums lg:px-4">{cls.studentCount}</td>
+                  <td className="px-3 py-3 tabular-nums lg:px-4">{cls.periodCount ?? 0}</td>
+                  <td className="whitespace-nowrap px-3 py-3 tabular-nums lg:px-4">{formatCurrency(cls.defaultTuitionFee)}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-slate-500 lg:px-4">{formatDate(cls.createdAt)}</td>
+                  <td className="whitespace-nowrap px-3 py-3 lg:px-4">
                     <div className="flex justify-end gap-2">
                       <button type="button" className="btn-secondary" onClick={() => setPeriodsClass(cls)}>
                         Kỳ học phí
@@ -175,6 +213,7 @@ export default function Classes() {
               ))}
             </tbody>
           </table>
+          </>
         )}
       </div>
 

@@ -170,11 +170,12 @@ export default function ExamEditor() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <Link to="/exams" className="text-sm font-medium text-primary-600 hover:underline">
+      {/* Điện thoại: hàng 1 = "← Danh sách đề" + trạng thái lưu, hàng 2 = ô tên đề rộng hết. Từ sm giữ nguyên một hàng. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-3">
+        <Link to="/exams" className="order-1 py-2 text-sm font-medium text-primary-600 hover:underline sm:py-0">
           ← Danh sách đề
         </Link>
-        <div className="flex min-w-[16rem] flex-1 flex-col">
+        <div className="order-3 flex w-full min-w-0 flex-1 flex-col sm:order-2 sm:w-auto sm:min-w-[16rem]">
           <input
             className="input text-base font-semibold"
             value={title}
@@ -189,7 +190,7 @@ export default function ExamEditor() {
           />
           {titleEmpty && <span className="mt-1 text-xs text-danger-600">Tên đề không được để trống.</span>}
         </div>
-        <div className="text-sm">
+        <div className="order-2 ml-auto text-right text-sm sm:order-3 sm:ml-0 sm:text-left">
           {saveState === 'error' ? (
             <span className="flex items-center gap-2 text-danger-600">
               Chưa lưu được.
@@ -230,15 +231,17 @@ export default function ExamEditor() {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-1 border-b border-slate-200">
+      {/* Điện thoại: lưới 2×2 nút bước thay vì tab xuống dòng lộn xộn. Từ sm giữ kiểu tab cũ. */}
+      <div className="flex flex-wrap gap-1 border-b border-slate-200 max-sm:grid max-sm:grid-cols-2 max-sm:gap-2 max-sm:border-b-0">
         {STEPS.map((s) => (
           <button
             key={s.step}
             type="button"
-            className={`-mb-px rounded-t-lg border px-4 py-2 text-sm font-medium ${
+            aria-current={step === s.step ? 'step' : undefined}
+            className={`-mb-px rounded-t-lg border px-4 py-2 text-sm font-medium max-sm:mb-0 max-sm:min-h-[40px] max-sm:rounded-lg max-sm:px-2 ${
               step === s.step
-                ? 'border-slate-200 border-b-white bg-white text-primary-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
+                ? 'border-slate-200 border-b-white bg-white text-primary-600 max-sm:border-primary-200 max-sm:bg-primary-50 max-sm:shadow-sm'
+                : 'border-transparent text-slate-500 hover:text-slate-700 max-sm:border-slate-200 max-sm:bg-white'
             }`}
             onClick={() => setStep(s.step)}
           >

@@ -139,26 +139,61 @@ export default function Exams() {
             <EmptyState message={'Chưa có đề nào. Bấm "Tải file Word lên" để bắt đầu.'} />
           </div>
         ) : (
-          <table className="min-w-full divide-y divide-slate-100 text-sm">
+          <>
+          {/* Điện thoại: mỗi đề là một thẻ. */}
+          <ul className="divide-y divide-slate-100 md:hidden">
+            {exams.map((ex) => (
+              <li key={ex.id} className="p-4">
+                <p className="break-words font-semibold text-slate-800">{ex.title}</p>
+                <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div className="col-span-2 min-w-0">
+                    <dt className="text-xs text-slate-500">File gốc</dt>
+                    <dd className="break-all text-slate-600">{ex.sourceName || '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-slate-500">Số mã đề</dt>
+                    <dd className="tabular-nums text-slate-800">{ex.versionCount}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-slate-500">Dung lượng</dt>
+                    <dd className="whitespace-nowrap tabular-nums text-slate-800">{formatBytes(ex.sizeBytes)}</dd>
+                  </div>
+                  <div className="col-span-2">
+                    <dt className="text-xs text-slate-500">Cập nhật</dt>
+                    <dd className="whitespace-nowrap text-slate-600">{formatDateTime(ex.updatedAt)}</dd>
+                  </div>
+                </dl>
+                <div className="mt-3 flex gap-2">
+                  <button type="button" className="btn-secondary min-h-[40px] flex-1" onClick={() => navigate(`/exams/${ex.id}`)}>
+                    Mở
+                  </button>
+                  <button type="button" className="btn-danger min-h-[40px] flex-1" onClick={() => setDeleteTarget(ex)}>
+                    Xóa
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <table className="hidden min-w-full divide-y divide-slate-100 text-sm md:table">
             <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-3">Tên đề</th>
-                <th className="px-4 py-3">File gốc</th>
-                <th className="px-4 py-3">Số mã đề</th>
-                <th className="px-4 py-3">Dung lượng</th>
-                <th className="px-4 py-3">Cập nhật</th>
-                <th className="px-4 py-3 text-right">Thao tác</th>
+                <th className="px-3 py-3 lg:px-4">Tên đề</th>
+                <th className="px-3 py-3 lg:px-4">File gốc</th>
+                <th className="px-3 py-3 lg:px-4">Số mã đề</th>
+                <th className="px-3 py-3 lg:px-4">Dung lượng</th>
+                <th className="px-3 py-3 lg:px-4">Cập nhật</th>
+                <th className="px-3 py-3 text-right lg:px-4">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {exams.map((ex) => (
                 <tr key={ex.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 font-medium text-slate-800">{ex.title}</td>
-                  <td className="px-4 py-3 text-slate-500">{ex.sourceName || '—'}</td>
-                  <td className="px-4 py-3 tabular-nums">{ex.versionCount}</td>
-                  <td className="px-4 py-3 tabular-nums">{formatBytes(ex.sizeBytes)}</td>
-                  <td className="px-4 py-3 text-slate-500">{formatDateTime(ex.updatedAt)}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3 font-medium text-slate-800 lg:px-4">{ex.title}</td>
+                  <td className="break-all px-3 py-3 text-slate-500 lg:break-normal lg:px-4">{ex.sourceName || '—'}</td>
+                  <td className="px-3 py-3 tabular-nums lg:px-4">{ex.versionCount}</td>
+                  <td className="whitespace-nowrap px-3 py-3 tabular-nums lg:px-4">{formatBytes(ex.sizeBytes)}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-slate-500 lg:px-4">{formatDateTime(ex.updatedAt)}</td>
+                  <td className="whitespace-nowrap px-3 py-3 lg:px-4">
                     <div className="flex justify-end gap-2">
                       <button type="button" className="btn-secondary" onClick={() => navigate(`/exams/${ex.id}`)}>
                         Mở
@@ -172,6 +207,7 @@ export default function Exams() {
               ))}
             </tbody>
           </table>
+          </>
         )}
       </div>
 

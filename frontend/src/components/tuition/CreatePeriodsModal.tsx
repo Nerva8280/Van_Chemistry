@@ -174,24 +174,28 @@ export default function CreatePeriodsModal({ column, candidates, onlyClassId, on
               />
             </div>
 
+            {/* Điện thoại: mỗi lớp thành một khối, hai ô ngày xếp chồng; từ sm là bảng như cũ. */}
             <div className="overflow-x-auto rounded-lg border border-slate-100">
-              <table className="min-w-full divide-y divide-slate-100 text-sm">
-                <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <table className="min-w-full divide-y divide-slate-100 text-sm max-sm:block">
+                <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 max-sm:hidden">
                   <tr>
                     <th className="px-3 py-2">Lớp</th>
                     <th className="px-3 py-2">Từ ngày</th>
                     <th className="px-3 py-2">Đến ngày (hạn đóng)</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 max-sm:block">
                   {candidates.map((c) => {
                     const r = rows[c.classId];
                     if (!r) return null;
                     const bad = r.checked && r.start && r.end && r.start > r.end;
                     return (
-                      <tr key={c.classId} className={r.checked ? '' : 'opacity-50'}>
-                        <td className="px-3 py-2">
-                          <label className="flex cursor-pointer items-center gap-2 font-medium text-slate-800">
+                      <tr
+                        key={c.classId}
+                        className={`max-sm:flex max-sm:flex-col max-sm:gap-2 max-sm:p-3 ${r.checked ? '' : 'opacity-50'}`}
+                      >
+                        <td className="px-3 py-2 max-sm:block max-sm:p-0">
+                          <label className="flex cursor-pointer items-center gap-2 font-medium text-slate-800 max-sm:min-h-[40px]">
                             <input
                               type="checkbox"
                               className="h-4 w-4 accent-primary-500"
@@ -206,20 +210,26 @@ export default function CreatePeriodsModal({ column, candidates, onlyClassId, on
                             </span>
                           )}
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2 max-sm:block max-sm:p-0">
+                          <span className="mb-1 block text-xs font-medium text-slate-500 sm:hidden" aria-hidden="true">
+                            Từ ngày
+                          </span>
                           <input
                             type="date"
-                            className={`input w-auto py-1.5 ${bad ? 'ring-2 ring-danger-300' : ''}`}
+                            className={`input py-1.5 max-sm:min-h-[40px] sm:w-auto ${bad ? 'ring-2 ring-danger-300' : ''}`}
                             value={r.start}
                             disabled={!r.checked}
                             onChange={(e) => update(c.classId, { start: e.target.value })}
                             aria-label={`Từ ngày, ${c.className}`}
                           />
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2 max-sm:block max-sm:p-0">
+                          <span className="mb-1 block text-xs font-medium text-slate-500 sm:hidden" aria-hidden="true">
+                            Đến ngày (hạn đóng)
+                          </span>
                           <input
                             type="date"
-                            className={`input w-auto py-1.5 ${bad ? 'ring-2 ring-danger-300' : ''}`}
+                            className={`input py-1.5 max-sm:min-h-[40px] sm:w-auto ${bad ? 'ring-2 ring-danger-300' : ''}`}
                             value={r.end}
                             disabled={!r.checked}
                             onChange={(e) => update(c.classId, { end: e.target.value })}
@@ -267,7 +277,7 @@ export default function CreatePeriodsModal({ column, candidates, onlyClassId, on
           </>
         )}
 
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {candidates.length > 0 && <span className="mr-auto text-xs text-slate-500">Đã chọn {chosen.length} lớp</span>}
           <button type="button" className="btn-secondary" onClick={onClose} disabled={saving}>
             Hủy

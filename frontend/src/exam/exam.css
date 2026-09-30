@@ -227,6 +227,40 @@
   min-width: 26px;
 }
 
+/* Nút nhỏ trong đề (Xóa, Đúng/Sai, …): trên màn hình cảm ứng mở rộng vùng chạm, giữ nguyên chữ. */
+@media (pointer: coarse) {
+  .ex-tap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    min-width: 36px;
+  }
+}
+
+/* Điện thoại (chỉ màn hình, không ảnh hưởng bản in): trang giấy rộng 100%, lề nhỏ,
+   lưới đáp án ít cột hơn; ô sửa trực tiếp tối thiểu 16px để iOS không tự phóng to. */
+@media screen and (max-width: 639.98px) {
+  .ex-sheet {
+    width: 100%;
+    min-height: 0;
+    padding: 32px 12px 12px;
+  }
+  .ex-code-badge {
+    top: 8px;
+    right: 12px;
+  }
+  .ex-cols-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ex-cols-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ex-editable {
+    font-size: max(1em, 16px);
+  }
+}
+
 @page {
   size: A4;
   margin: 15mm;

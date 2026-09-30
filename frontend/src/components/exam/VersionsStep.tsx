@@ -92,7 +92,7 @@ export default function VersionsStep({ data, update, onPrint, onGoGenerate }: Ve
           <button
             key={v.code + i}
             type="button"
-            className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${
+            className={`rounded-lg px-3 py-1.5 text-sm font-semibold max-sm:min-h-[40px] max-sm:min-w-[48px] [@media(pointer:coarse)]:min-h-[40px] ${
               i === idx ? 'bg-primary-500 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50'
             }`}
             onClick={() => setSelected(i)}

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 interface NavItem {
@@ -88,6 +88,12 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { pathname } = useLocation();
+
+  // Đóng menu trượt (điện thoại/iPad dọc) mỗi khi chuyển trang.
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   async function handleLogout() {
     await logout();
@@ -102,7 +108,7 @@ export default function Layout() {
     .toUpperCase();
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
+    <div className="flex h-screen overflow-hidden bg-slate-50 supports-[height:100dvh]:h-dvh">
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
@@ -114,11 +120,11 @@ export default function Layout() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-64 transform bg-white shadow-sm ring-1 ring-slate-100 transition-transform lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 max-w-[85vw] transform flex-col overflow-y-auto bg-white pb-[env(safe-area-inset-bottom)] shadow-sm ring-1 ring-slate-100 transition-transform lg:static lg:max-w-none lg:translate-x-0 ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex h-16 items-center gap-2 border-b border-slate-100 px-5">
+        <div className="flex h-16 shrink-0 items-center gap-2 border-b border-slate-100 px-5">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-500 text-white font-bold">
             VC
           </div>
@@ -149,10 +155,10 @@ export default function Layout() {
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-100 bg-white px-4 sm:px-6">
+        <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 sm:px-6">
           <button
             type="button"
-            className="rounded-md p-2 text-slate-500 hover:bg-slate-100 lg:hidden"
+            className="-ml-1 rounded-md p-2.5 text-slate-500 hover:bg-slate-100 lg:hidden"
             onClick={() => setMobileOpen(true)}
             aria-label="Mở menu"
           >
@@ -161,24 +167,24 @@ export default function Layout() {
             </svg>
           </button>
           <div className="hidden lg:block" />
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             {user?.avatarUrl ? (
-              <img src={user.avatarUrl} alt={user.name} className="h-9 w-9 rounded-full object-cover" />
+              <img src={user.avatarUrl} alt={user.name} className="h-9 w-9 shrink-0 rounded-full object-cover" />
             ) : (
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700">
                 {initials}
               </div>
             )}
-            <div className="hidden text-sm sm:block">
-              <p className="font-medium text-slate-800">{user?.name}</p>
-              <p className="text-xs text-slate-400">{user?.email}</p>
+            <div className="hidden min-w-0 text-sm sm:block">
+              <p className="truncate font-medium text-slate-800">{user?.name}</p>
+              <p className="truncate text-xs text-slate-400">{user?.email}</p>
             </div>
-            <button type="button" className="btn-secondary" onClick={handleLogout}>
+            <button type="button" className="btn-secondary shrink-0" onClick={handleLogout}>
               Đăng xuất
             </button>
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+        <main className="min-w-0 flex-1 overflow-y-auto p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6 sm:pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
           <Outlet />
         </main>
       </div>

@@ -234,12 +234,12 @@ export default function Students() {
 
       <div className="flex flex-wrap gap-3">
         <input
-          className="input max-w-xs"
+          className="input sm:max-w-xs"
           placeholder="Tìm theo tên học sinh..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <select className="input w-auto" value={classFilter} onChange={(e) => setClassFilter(e.target.value)}>
+        <select className="input sm:w-auto" value={classFilter} onChange={(e) => setClassFilter(e.target.value)}>
           <option value="">Tất cả lớp</option>
           {classes.map((cls) => (
             <option key={cls.id} value={cls.id}>
@@ -261,29 +261,67 @@ export default function Students() {
             <EmptyState message="Không tìm thấy học sinh nào." />
           </div>
         ) : (
-          <table className="min-w-full divide-y divide-slate-100 text-sm">
+          <>
+          {/* Điện thoại: mỗi học sinh là một thẻ. */}
+          <ul className="divide-y divide-slate-100 md:hidden">
+            {students.map((student) => (
+              <li key={student.id} className="p-4">
+                <p className="font-semibold text-slate-800">
+                  {student.fullName}
+                  {!student.active && <span className="ml-1 text-xs font-normal text-slate-400">(đã nghỉ)</span>}
+                </p>
+                <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div className="min-w-0">
+                    <dt className="text-xs text-slate-500">Lớp</dt>
+                    <dd className="text-slate-700">{classOf(student)?.name ?? '—'}</dd>
+                  </div>
+                  <div className="min-w-0">
+                    <dt className="text-xs text-slate-500">Học phí mỗi kỳ</dt>
+                    <dd className="whitespace-nowrap tabular-nums text-slate-800">{formatCurrency(student.monthlyTuitionFee)}</dd>
+                  </div>
+                  <div className="col-span-2 min-w-0">
+                    <dt className="text-xs text-slate-500">Email phụ huynh</dt>
+                    <dd className="break-all text-slate-700">{student.parentEmail || '—'}</dd>
+                  </div>
+                  <div className="col-span-2 min-w-0">
+                    <dt className="text-xs text-slate-500">SĐT phụ huynh</dt>
+                    <dd className="text-slate-700">{student.parentPhone || '—'}</dd>
+                  </div>
+                </dl>
+                <div className="mt-3 flex gap-2">
+                  <button type="button" className="btn-secondary min-h-[40px] flex-1" onClick={() => openEdit(student)}>
+                    Sửa
+                  </button>
+                  <button type="button" className="btn-danger min-h-[40px] flex-1" onClick={() => setDeleteTarget(student)}>
+                    Xóa
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <table className="hidden min-w-full divide-y divide-slate-100 text-sm md:table">
             <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-3">Họ và tên</th>
-                <th className="px-4 py-3">Lớp</th>
-                <th className="px-4 py-3">Email phụ huynh</th>
-                <th className="px-4 py-3">SĐT phụ huynh</th>
-                <th className="px-4 py-3">Học phí mỗi kỳ</th>
-                <th className="px-4 py-3 text-right">Thao tác</th>
+                <th className="px-3 py-3 lg:px-4">Họ và tên</th>
+                <th className="px-3 py-3 lg:px-4">Lớp</th>
+                <th className="px-3 py-3 lg:px-4">Email phụ huynh</th>
+                <th className="px-3 py-3 lg:px-4">SĐT phụ huynh</th>
+                <th className="px-3 py-3 lg:px-4">Học phí mỗi kỳ</th>
+                <th className="px-3 py-3 text-right lg:px-4">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {students.map((student) => (
                 <tr key={student.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 font-medium text-slate-800">
+                  <td className="px-3 py-3 font-medium text-slate-800 lg:px-4">
                     {student.fullName}
                     {!student.active && <span className="ml-1 text-xs font-normal text-slate-400">(đã nghỉ)</span>}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{classOf(student)?.name ?? '—'}</td>
-                  <td className="px-4 py-3 text-slate-600">{student.parentEmail || '—'}</td>
-                  <td className="px-4 py-3 text-slate-600">{student.parentPhone || '—'}</td>
-                  <td className="px-4 py-3 tabular-nums">{formatCurrency(student.monthlyTuitionFee)}</td>
-                  <td className="px-4 py-3">
+                  <td className="whitespace-nowrap px-3 py-3 text-slate-600 lg:px-4">{classOf(student)?.name ?? '—'}</td>
+                  <td className="break-all px-3 py-3 text-slate-600 lg:break-normal lg:px-4">{student.parentEmail || '—'}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-slate-600 lg:px-4">{student.parentPhone || '—'}</td>
+                  <td className="whitespace-nowrap px-3 py-3 tabular-nums lg:px-4">{formatCurrency(student.monthlyTuitionFee)}</td>
+                  <td className="whitespace-nowrap px-3 py-3 lg:px-4">
                     <div className="flex justify-end gap-2">
                       <button type="button" className="btn-secondary" onClick={() => openEdit(student)}>
                         Sửa
@@ -297,6 +335,7 @@ export default function Students() {
               ))}
             </tbody>
           </table>
+          </>
         )}
       </div>
 

@@ -76,6 +76,8 @@ function defaultBulkMonth(columns: TuitionColumn[]): string {
 }
 
 const QUARTER_LABELS = ['Tháng 1–3', 'Tháng 4–6', 'Tháng 7–9', 'Tháng 10–12'];
+/** Nhãn ngắn cho nút quý trên điện thoại. */
+const QUARTER_SHORT_LABELS = ['T1–3', 'T4–6', 'T7–9', 'T10–12'];
 
 /** Kỳ gần nhất của lớp trước tháng `col` (trong trang đang xem hoặc trước đó). */
 function previousPeriodEnd(cls: TuitionGridClass, col: TuitionColumn): string | null {
@@ -91,9 +93,10 @@ function DueText({ period }: { period: Period }) {
   const range = formatShortRange(period.startDate, period.endDate);
   return (
     <span className="block" title={periodTitle(period, period.month)}>
-      <span className="block whitespace-nowrap text-[11px] font-semibold text-slate-700">
+      {/* Dưới sm: tên kỳ một dòng, khoảng ngày xuống dòng dưới để cột tháng hẹp lại. */}
+      <span className="block text-[11px] font-semibold text-slate-700 max-sm:leading-tight sm:whitespace-nowrap">
         {period.name}
-        {range && <span className="font-normal text-slate-500"> ({range})</span>}
+        {range && <span className="block font-normal text-slate-500 sm:inline"> ({range})</span>}
       </span>
       {period.endDate ? (
         <span className="block whitespace-nowrap text-[11px] font-medium text-primary-600">
@@ -476,29 +479,32 @@ export default function Tuition() {
     return (
       <td
         key={key}
-        className={`border-b border-l border-white px-1.5 py-1 align-middle ${STATUS_CELL_CLASS[payment.status]}`}
+        className={`border-b border-l border-white px-1 py-1 align-middle sm:px-1.5 ${STATUS_CELL_CLASS[payment.status]}`}
         title={cellTooltip(payment, period)}
       >
-        <div className="flex items-center gap-1.5">
-          <input
-            type="checkbox"
-            className="h-4 w-4 shrink-0 cursor-pointer accent-success-500 disabled:cursor-wait"
-            checked={payment.isPaid}
-            disabled={isPending}
-            onChange={() => handleCheckbox(student, payment, period)}
-            aria-label={`${payment.isPaid ? 'Bỏ đánh dấu đã đóng' : 'Đánh dấu đã đóng'}: ${student.fullName}, ${
-              period?.name ?? `Tháng ${col.month}`
-            }`}
-          />
+        <div className="flex items-center gap-1 sm:gap-1.5">
+          {/* Nhãn bọc ô chọn: vùng chạm lớn hơn trên màn hình cảm ứng, ô vẫn giữ kích thước 16px. */}
+          <label className="-my-1 -ml-1 flex shrink-0 cursor-pointer items-center self-stretch px-1 max-sm:min-h-[40px] [@media(pointer:coarse)]:min-h-[40px] [@media(pointer:coarse)]:px-1.5">
+            <input
+              type="checkbox"
+              className="h-4 w-4 shrink-0 cursor-pointer accent-success-500 disabled:cursor-wait"
+              checked={payment.isPaid}
+              disabled={isPending}
+              onChange={() => handleCheckbox(student, payment, period)}
+              aria-label={`${payment.isPaid ? 'Bỏ đánh dấu đã đóng' : 'Đánh dấu đã đóng'}: ${student.fullName}, ${
+                period?.name ?? `Tháng ${col.month}`
+              }`}
+            />
+          </label>
           <button
             type="button"
             onClick={openEdit}
-            className="min-w-0 rounded text-left text-[11px] leading-tight hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
+            className="min-w-0 self-stretch rounded text-left text-[11px] leading-tight hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
             aria-label={`Cập nhật học phí: ${student.fullName}, ${period?.name ?? `Tháng ${col.month}`}`}
           >
             <span className="block whitespace-nowrap font-medium">{STATUS_LABEL[payment.status]}</span>
             {payment.status === 'partial' && (
-              <span className="block whitespace-nowrap tabular-nums">
+              <span className="block tabular-nums sm:whitespace-nowrap">
                 {formatNumber(payment.paidAmount)} / {formatNumber(payment.expectedAmount)}
               </span>
             )}
@@ -513,19 +519,26 @@ export default function Tuition() {
     const stickyBg = isSelected ? 'bg-primary-50' : 'bg-white group-hover:bg-slate-50';
     return (
       <tr key={student.id} className="group">
-        <td className={`sticky left-0 z-10 w-9 min-w-[36px] border-b border-slate-100 px-2 text-center ${stickyBg}`}>
-          <input
-            type="checkbox"
-            className="h-4 w-4 cursor-pointer accent-primary-500"
-            checked={isSelected}
-            onChange={(e) => toggleStudents([student.id], e.target.checked)}
-            aria-label={`Chọn ${student.fullName}`}
-          />
+        {/* Cột chọn rộng đúng 36px (left-9 của cột tên dựa vào độ rộng này); cả ô là vùng bấm. */}
+        <td className={`sticky left-0 z-10 w-9 min-w-[36px] max-w-[36px] border-b border-slate-100 p-0 text-center ${stickyBg}`}>
+          <label className="flex min-h-[36px] w-full cursor-pointer items-center justify-center max-sm:min-h-[44px]">
+            <input
+              type="checkbox"
+              className="h-4 w-4 cursor-pointer accent-primary-500"
+              checked={isSelected}
+              onChange={(e) => toggleStudents([student.id], e.target.checked)}
+              aria-label={`Chọn ${student.fullName}`}
+            />
+          </label>
         </td>
+        {/* Cột tên: 120px dưới sm (tên xuống tối đa 2 dòng), 208px từ sm. */}
         <td
-          className={`sticky left-9 z-10 w-40 min-w-[160px] max-w-[160px] border-b border-r border-slate-200 px-2 py-1.5 sm:w-52 sm:min-w-[208px] sm:max-w-[208px] ${stickyBg}`}
+          className={`sticky left-9 z-10 w-[120px] min-w-[120px] max-w-[120px] border-b border-r border-slate-200 px-2 py-1.5 sm:w-52 sm:min-w-[208px] sm:max-w-[208px] ${stickyBg}`}
         >
-          <p className="truncate text-sm font-medium text-slate-800" title={student.fullName}>
+          <p
+            className="break-words text-[13px] font-medium leading-snug text-slate-800 max-sm:line-clamp-2 sm:truncate sm:text-sm"
+            title={student.fullName}
+          >
             {student.fullName}
             {!student.active && <span className="ml-1 text-xs font-normal text-slate-400">(nghỉ)</span>}
           </p>
@@ -590,14 +603,14 @@ export default function Tuition() {
       </div>
 
       {/* Bộ lọc */}
-      <div className="card flex flex-wrap items-end gap-3 p-4">
-        <div>
+      <div className="card grid grid-cols-2 items-end gap-3 p-4 sm:flex sm:flex-wrap">
+        <div className="min-w-0">
           <label className="label text-xs" htmlFor="f-year">
             Năm
           </label>
           <select
             id="f-year"
-            className="input w-auto"
+            className="input sm:w-auto"
             value={year}
             onChange={(e) => goToPage(Number(e.target.value), quarter)}
           >
@@ -608,11 +621,11 @@ export default function Tuition() {
             ))}
           </select>
         </div>
-        <div>
+        <div className="min-w-0">
           <label className="label text-xs" htmlFor="f-class">
             Lớp
           </label>
-          <select id="f-class" className="input w-auto" value={classId} onChange={(e) => setClassId(e.target.value)}>
+          <select id="f-class" className="input sm:w-auto" value={classId} onChange={(e) => setClassId(e.target.value)}>
             <option value="">Tất cả lớp</option>
             {classOptions.map((c) => (
               <option key={c.id} value={c.id}>
@@ -621,13 +634,13 @@ export default function Tuition() {
             ))}
           </select>
         </div>
-        <div>
+        <div className="min-w-0">
           <label className="label text-xs" htmlFor="f-status">
             Trạng thái
           </label>
           <select
             id="f-status"
-            className="input w-auto"
+            className="input sm:w-auto"
             value={status}
             onChange={(e) => {
               setStatus(e.target.value as '' | PaymentStatus);
@@ -645,14 +658,14 @@ export default function Tuition() {
         {status && statusMonth && (
           <button
             type="button"
-            className="mb-1 flex items-center gap-1 self-end rounded-full bg-primary-50 px-3 py-1.5 text-xs font-medium text-primary-700 ring-1 ring-primary-100 hover:bg-primary-100"
+            className="mb-1 flex items-center gap-1 self-end justify-self-start rounded-full max-sm:min-h-[36px] bg-primary-50 px-3 py-1.5 text-xs font-medium text-primary-700 ring-1 ring-primary-100 hover:bg-primary-100"
             onClick={() => setStatusMonth(null)}
             title="Bỏ giới hạn tháng, lọc trạng thái trong cả 3 tháng"
           >
             Chỉ Tháng {statusMonth} <span aria-hidden="true">×</span>
           </button>
         )}
-        <div className="min-w-[180px] flex-1">
+        <div className="col-span-2 min-w-0 flex-1 sm:min-w-[180px]">
           <label className="label text-xs" htmlFor="f-search">
             Tìm học sinh
           </label>
@@ -665,7 +678,7 @@ export default function Tuition() {
           />
         </div>
         {hasFilters && (
-          <button type="button" className="btn-secondary" onClick={resetFilters}>
+          <button type="button" className="btn-secondary col-span-2" onClick={resetFilters}>
             Xóa bộ lọc
           </button>
         )}
@@ -696,10 +709,11 @@ export default function Tuition() {
 
       {/* Thanh thao tác hàng loạt */}
       {selectedVisible.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl bg-primary-50 px-4 py-3 ring-1 ring-primary-100">
-          <span className="text-sm font-medium text-primary-700">Đã chọn {selectedVisible.length} học sinh</span>
+        // Điện thoại: thanh dính đáy màn hình (chừa vùng an toàn iPhone) để luôn bấm được khi cuộn danh sách dài.
+        <div className="grid grid-cols-2 gap-2 bg-primary-50 px-4 py-3 ring-1 ring-primary-100 max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:z-20 max-sm:pb-[calc(0.75rem+env(safe-area-inset-bottom))] max-sm:shadow-[0_-4px_12px_rgba(15,23,42,0.12)] sm:flex sm:flex-wrap sm:items-center sm:gap-3 sm:rounded-xl">
+          <span className="col-span-2 text-sm font-medium text-primary-700">Đã chọn {selectedVisible.length} học sinh</span>
           <select
-            className="input w-auto bg-white"
+            className="input bg-white sm:w-auto"
             value={bulkMonth}
             onChange={(e) => setBulkMonth(e.target.value)}
             aria-label="Chọn tháng để đánh dấu"
@@ -710,24 +724,26 @@ export default function Tuition() {
               </option>
             ))}
           </select>
-          <button type="button" className="btn-primary" onClick={handleBulkClick} disabled={!bulkMonth}>
+          <button type="button" className="btn-primary max-sm:px-2" onClick={handleBulkClick} disabled={!bulkMonth}>
             Đánh dấu đã đóng
           </button>
-          <button type="button" className="btn-secondary bg-white" onClick={handleEnrollClick} disabled={!bulkMonth}>
+          <button type="button" className="btn-secondary bg-white max-sm:px-2" onClick={handleEnrollClick} disabled={!bulkMonth}>
             Thêm vào kỳ
           </button>
-          <button type="button" className="btn-secondary" onClick={() => setSelected(new Set())}>
+          <button type="button" className="btn-secondary max-sm:px-2" onClick={() => setSelected(new Set())}>
             Bỏ chọn
           </button>
         </div>
       )}
 
       {/* Phân trang: mỗi trang 3 tháng, một năm 4 trang */}
-      <nav className="card flex flex-wrap items-center gap-2 p-3" aria-label="Chọn quý">
-        <button type="button" className="btn-secondary px-3" onClick={goPrev} aria-label="Trang trước">
-          ‹ Trước
+      {/* Dưới sm: một hàng gọn (nút mũi tên + 4 nút quý nhãn ngắn); từ sm giữ nguyên. */}
+      <nav className="card flex flex-nowrap items-center gap-1.5 p-2 sm:flex-wrap sm:gap-2 sm:p-3" aria-label="Chọn quý">
+        <button type="button" className="btn-secondary shrink-0 px-3 max-sm:w-10 max-sm:px-0" onClick={goPrev} aria-label="Trang trước">
+          <span className="sm:hidden" aria-hidden="true">‹</span>
+          <span className="hidden sm:inline">‹ Trước</span>
         </button>
-        <div className="flex flex-wrap gap-1">
+        <div className="grid min-w-0 flex-1 grid-cols-4 gap-1 sm:flex sm:flex-initial sm:flex-wrap">
           {QUARTER_LABELS.map((label, i) => {
             const q = i + 1;
             const active = q === quarter;
@@ -737,19 +753,21 @@ export default function Tuition() {
                 type="button"
                 onClick={() => goToPage(year, q)}
                 aria-current={active ? 'page' : undefined}
-                className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                className={`whitespace-nowrap rounded-lg px-1 py-2 text-sm font-medium transition-colors max-sm:min-h-[40px] sm:px-3 ${
                   active ? 'bg-primary-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
                 }`}
               >
-                {label}
+                <span className="sm:hidden">{QUARTER_SHORT_LABELS[i]}</span>
+                <span className="hidden sm:inline">{label}</span>
               </button>
             );
           })}
         </div>
-        <button type="button" className="btn-secondary px-3" onClick={goNext} aria-label="Trang sau">
-          Sau ›
+        <button type="button" className="btn-secondary shrink-0 px-3 max-sm:w-10 max-sm:px-0" onClick={goNext} aria-label="Trang sau">
+          <span className="sm:hidden" aria-hidden="true">›</span>
+          <span className="hidden sm:inline">Sau ›</span>
         </button>
-        <span className="ml-auto text-sm font-semibold text-slate-800">
+        <span className="ml-auto hidden text-sm font-semibold text-slate-800 sm:inline">
           {QUARTER_LABELS[quarter - 1]} / {year}
         </span>
       </nav>
@@ -783,22 +801,24 @@ export default function Tuition() {
             <EmptyState message="Không có học sinh nào phù hợp với bộ lọc." />
           </div>
         ) : (
-          <div className="max-h-[72vh] overflow-auto rounded-xl">
+          <div className="isolate max-h-[72vh] overflow-auto rounded-xl">
             <table className="min-w-full border-separate border-spacing-0 text-sm">
               <thead className="text-left text-xs font-semibold text-slate-500">
                 <tr>
-                  <th className="sticky left-0 top-0 z-30 w-9 min-w-[36px] border-b border-slate-200 bg-slate-50 px-2 py-2 text-center">
-                    <input
-                      ref={selectAllRef}
-                      type="checkbox"
-                      className="h-4 w-4 cursor-pointer accent-primary-500"
-                      checked={allSelected}
-                      onChange={(e) => toggleStudents(visibleStudents.map((s) => s.id), e.target.checked)}
-                      aria-label="Chọn tất cả học sinh"
-                      title="Chọn tất cả"
-                    />
+                  <th className="sticky left-0 top-0 z-30 w-9 min-w-[36px] max-w-[36px] border-b border-slate-200 bg-slate-50 p-0 text-center">
+                    <label className="flex min-h-[36px] w-full cursor-pointer items-center justify-center max-sm:min-h-[44px]">
+                      <input
+                        ref={selectAllRef}
+                        type="checkbox"
+                        className="h-4 w-4 cursor-pointer accent-primary-500"
+                        checked={allSelected}
+                        onChange={(e) => toggleStudents(visibleStudents.map((s) => s.id), e.target.checked)}
+                        aria-label="Chọn tất cả học sinh"
+                        title="Chọn tất cả"
+                      />
+                    </label>
                   </th>
-                  <th className="sticky left-9 top-0 z-30 w-40 min-w-[160px] border-b border-r border-slate-200 bg-slate-50 px-2 py-2 sm:w-52 sm:min-w-[208px]">
+                  <th className="sticky left-9 top-0 z-30 w-[120px] min-w-[120px] max-w-[120px] border-b border-r border-slate-200 bg-slate-50 px-2 py-2 sm:w-52 sm:min-w-[208px] sm:max-w-[208px]">
                     Tên học sinh
                   </th>
                   {columns.map((col) => {
@@ -808,11 +828,11 @@ export default function Tuition() {
                     return (
                       <th
                         key={colKey(col)}
-                        className="sticky top-0 z-20 min-w-[112px] border-b border-l border-slate-200 bg-slate-50 px-2 py-2 text-left"
+                        className="sticky top-0 z-20 min-w-[96px] border-b border-l border-slate-200 bg-slate-50 px-1.5 py-2 text-left sm:min-w-[112px] sm:px-2"
                         title={sub ? undefined : 'Các lớp có khoảng ngày khác nhau — rê chuột vào từng ô để xem kỳ.'}
                       >
                         <span className="block whitespace-nowrap text-slate-700">Tháng {col.month}</span>
-                        {sub && <span className="block whitespace-nowrap text-[11px] font-normal text-slate-400">{sub}</span>}
+                        {sub && <span className="block text-[11px] font-normal text-slate-400 max-sm:leading-tight sm:whitespace-nowrap">{sub}</span>}
                         {singlePeriod && <DueText period={singlePeriod} />}
                         {missingClasses(col).length > 0 && (
                           <button
@@ -840,20 +860,21 @@ export default function Tuition() {
                             colSpan={2}
                             className="sticky left-0 z-10 border-b border-r border-slate-200 bg-slate-100 px-2 py-1.5"
                           >
-                            <label className="flex cursor-pointer items-center gap-2">
+                            {/* max-w = cột chọn + cột tên, để tên lớp dài không làm giãn 2 cột dính bên trái. */}
+                            <label className="flex max-w-[140px] cursor-pointer items-center gap-2 max-sm:min-h-[36px] sm:max-w-[228px]">
                               <input
                                 type="checkbox"
-                                className="h-4 w-4 accent-primary-500"
+                                className="h-4 w-4 shrink-0 accent-primary-500"
                                 checked={allInClass}
                                 onChange={(e) => toggleStudents(ids, e.target.checked)}
                                 aria-label={`Chọn cả lớp ${g.cls.name}`}
                               />
-                              <span className="truncate text-sm font-semibold text-slate-800">{g.cls.name}</span>
+                              <span className="min-w-0 truncate text-sm font-semibold text-slate-800">{g.cls.name}</span>
                               <span className="shrink-0 text-xs text-slate-500">{g.students.length} HS</span>
                             </label>
                           </td>
                           {columns.map((col) => (
-                            <td key={colKey(col)} className="border-b border-l border-slate-200 bg-slate-100 px-2 py-1">
+                            <td key={colKey(col)} className="border-b border-l border-slate-200 bg-slate-100 px-1.5 py-1 sm:px-2">
                               {periodOf(g.cls, col) && <DueText period={periodOf(g.cls, col)!} />}
                               {!periodOf(g.cls, col) && (
                                 <button
@@ -877,6 +898,9 @@ export default function Tuition() {
           </div>
         )}
       </div>
+
+      {/* Chừa chỗ cho thanh thao tác hàng loạt dính đáy trên điện thoại. */}
+      {selectedVisible.length > 0 && <div className="h-40 sm:hidden" aria-hidden="true" />}
 
       <ConfirmDialog
         open={!!confirm}
