@@ -110,12 +110,12 @@ export default function Layout() {
       >
         <div className="flex h-16 items-center gap-2 border-b border-slate-100 px-5">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-500 text-white font-bold">
-            HP
+            VC
           </div>
           <span className="text-sm font-semibold leading-tight text-slate-800">
-            Quản lý
+            Van Chemistry
             <br />
-            Học phí
+            Tuition
           </span>
         </div>
         <nav className="mt-3 flex flex-col gap-1 px-3">

@@ -32,9 +32,9 @@ export default function Login() {
       <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-sm ring-1 ring-slate-100">
         <div className="mb-6 flex flex-col items-center text-center">
           <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-primary-500 text-lg font-bold text-white">
-            HP
+            VC
           </div>
-          <h1 className="text-xl font-semibold text-slate-900">Hệ thống Quản lý Học phí</h1>
+          <h1 className="text-xl font-semibold text-slate-900">Van Chemistry Tuition</h1>
           <p className="mt-1 text-sm text-slate-500">Đăng nhập để tiếp tục quản lý lớp học của bạn</p>
         </div>
 
