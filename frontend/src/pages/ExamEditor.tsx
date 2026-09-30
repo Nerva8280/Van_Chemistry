@@ -175,7 +175,7 @@ export default function ExamEditor() {
         <Link to="/exams" className="order-1 py-2 text-sm font-medium text-primary-600 hover:underline sm:py-0">
           ← Danh sách đề
         </Link>
-        <div className="order-3 flex w-full min-w-0 flex-1 flex-col sm:order-2 sm:w-auto sm:min-w-[16rem]">
+        <div className="order-3 flex min-w-0 basis-full flex-col sm:order-2 sm:min-w-[16rem] sm:flex-1 sm:basis-0">
           <input
             className="input text-base font-semibold"
             value={title}
