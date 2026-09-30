@@ -1,0 +1,251 @@
+/* Trình bày đề thi (màn hình + in). Tailwind preflight đặt img là block; ở đây trả lại inline
+   để ảnh trong dòng căn giữa được theo text-align. */
+
+.ex-paper {
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 12pt;
+  line-height: 1.35;
+  color: #000;
+}
+.ex-paper img {
+  display: inline-block;
+  max-width: 100%;
+  height: auto;
+  vertical-align: middle;
+}
+.ex-paper sub,
+.ex-paper sup {
+  font-size: 0.72em;
+  line-height: 0;
+}
+.ex-paper b,
+.ex-paper strong {
+  font-weight: 700;
+}
+.ex-center {
+  text-align: center;
+}
+.ex-right {
+  text-align: right;
+}
+.ex-header {
+  margin-bottom: 6px;
+}
+.ex-code-line {
+  text-align: right;
+  font-weight: 700;
+}
+.ex-section-title {
+  margin: 8px 0 4px;
+}
+.ex-question {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  margin: 3px 0 5px;
+}
+.ex-qnum {
+  font-weight: 700;
+}
+.ex-options {
+  display: grid;
+  column-gap: 12px;
+  row-gap: 1px;
+}
+.ex-cols-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.ex-cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.ex-cols-1 {
+  grid-template-columns: minmax(0, 1fr);
+}
+.ex-letter {
+  font-weight: 700;
+}
+.ex-end {
+  margin-top: 14px;
+  text-align: center;
+  font-weight: 700;
+}
+
+/* Công thức (OMML) */
+.ex-math {
+  font-style: normal;
+  white-space: nowrap;
+}
+.ex-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  vertical-align: middle;
+  line-height: 1.05;
+  margin: 0 0.15em;
+  text-align: center;
+}
+.ex-stack > .ex-small {
+  font-size: 0.72em;
+  padding: 0 0.3em;
+  white-space: nowrap;
+}
+.ex-mid {
+  display: block;
+  text-align: center;
+}
+.ex-arrow {
+  display: block;
+}
+.ex-arrow-r,
+.ex-arrow-l {
+  position: relative;
+  height: 0.6em;
+  min-width: 2em;
+  color: transparent;
+}
+.ex-arrow-r::before,
+.ex-arrow-l::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1px solid #000;
+}
+.ex-arrow-r::after,
+.ex-arrow-l::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 0.42em;
+  height: 0.42em;
+  margin-top: -0.21em;
+  border-top: 1px solid #000;
+  transform: rotate(45deg);
+}
+.ex-arrow-r::after {
+  right: 1px;
+  border-right: 1px solid #000;
+}
+.ex-arrow-l::after {
+  left: 1px;
+  border-left: 1px solid #000;
+  transform: rotate(-45deg);
+}
+.ex-frac {
+  display: inline-flex;
+  flex-direction: column;
+  vertical-align: middle;
+  text-align: center;
+  line-height: 1.1;
+}
+.ex-num {
+  border-bottom: 1px solid currentColor;
+  padding: 0 0.15em;
+}
+.ex-den {
+  padding: 0 0.15em;
+}
+.ex-subsup {
+  display: inline-flex;
+  flex-direction: column;
+  vertical-align: middle;
+  font-size: 0.72em;
+  line-height: 1;
+}
+.ex-paper .ex-subsup sub,
+.ex-paper .ex-subsup sup {
+  font-size: 1em;
+  vertical-align: baseline;
+  line-height: 1;
+}
+.ex-overline {
+  text-decoration: overline;
+}
+.ex-underline {
+  text-decoration: underline;
+}
+.ex-nary {
+  font-size: 1.3em;
+}
+.ex-missing {
+  color: #b52f2f;
+  font-style: italic;
+}
+
+/* Ô sửa trực tiếp */
+.ex-editable {
+  outline: none;
+  border: 1px dashed transparent;
+  border-radius: 6px;
+  padding: 1px 6px;
+  min-height: 1.6em;
+  min-width: 3em;
+}
+.ex-editable:hover {
+  border-color: #cbd5e1;
+}
+.ex-editable:focus {
+  border-color: #2a78d6;
+  background: #f8fbff;
+}
+.ex-editable:empty::before {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+}
+.ex-overridden {
+  background: #fff6e6;
+}
+
+/* Trang A4 */
+.ex-sheet {
+  background: #fff;
+  width: 210mm;
+  max-width: 100%;
+  min-height: 297mm;
+  padding: 15mm;
+  margin: 0 auto 16px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.15);
+}
+.ex-answer-table {
+  border-collapse: collapse;
+  margin: 4px 0 10px;
+}
+.ex-answer-table th,
+.ex-answer-table td {
+  border: 1px solid #000;
+  padding: 2px 6px;
+  text-align: center;
+  min-width: 26px;
+}
+
+@page {
+  size: A4;
+  margin: 15mm;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  html,
+  body,
+  #root {
+    height: auto !important;
+    background: #fff !important;
+  }
+  .ex-print-root {
+    background: #fff !important;
+    padding: 0 !important;
+  }
+  .ex-sheet {
+    width: auto;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+  }
+  .ex-page-break {
+    break-before: page;
+    page-break-before: always;
+  }
+}

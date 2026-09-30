@@ -17,7 +17,14 @@ app.use(
   })
 );
 
-app.use(express.json());
+// /api/exams có bộ đọc JSON riêng với giới hạn lớn hơn (xem routes/exams.routes.ts); bộ đọc
+// chung (giới hạn mặc định ~100kb) chạy trước nên phải bỏ qua đường dẫn đó, nếu không đề có
+// ảnh sẽ bị từ chối "413" trước khi tới route.
+const defaultJson = express.json();
+app.use((req, res, next) => {
+  if (req.path === "/api/exams" || req.path.startsWith("/api/exams/")) return next();
+  return defaultJson(req, res, next);
+});
 app.use(express.urlencoded({ extended: true }));
 
 app.use(sessionMiddleware);

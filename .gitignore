@@ -7,4 +7,5 @@ build/
 .DS_Store
 # Real student data must never reach the public repo.
 du-lieu/
+de-mau/
 Thumbs.db

@@ -144,7 +144,39 @@ Preview = {
 total_match, total_unassigned, zero_value, blank_cell, partial_payment, overpaid, invalid_value, stray_row.
 Nhập lại cùng file sẽ cập nhật (không nhân đôi): lớp, kỳ, học sinh được so khớp theo tên.
 
-## 10. Báo cáo & khác
+## 10. Tạo đề (đề thi và mã đề)
+
+File Word (.docx) được đọc **ngay trên trình duyệt** (`frontend/src/exam/parseDocx.ts`); backend chỉ lưu kết quả dạng JSON.
+Ảnh nằm trong JSON dưới dạng data URL (png/jpeg/gif). Mọi route cần đăng nhập, dữ liệu theo chủ sở hữu (`ownerId`);
+đề của người khác trả `404`. Route này có bộ đọc JSON riêng giới hạn 15 MB; dữ liệu trên 12 MB bị từ chối (`413`).
+
+`ExamSummary = { id, title, sourceName: string|null, versionCount, sizeBytes, createdAt, updatedAt }`
+`Exam = ExamSummary & { data: ExamData }` (`sizeBytes` = số byte của `JSON.stringify(data)`)
+
+- `GET /api/exams` → `{ exams: ExamSummary[], totalBytes }` (mới cập nhật trước; không trả `data`)
+- `GET /api/exams/:id` → `Exam`
+- `POST /api/exams` body `{ title, sourceName?, data }` → `201 Exam`
+- `PUT /api/exams/:id` body `{ title?, data? }` → `Exam` (frontend tự lưu sau ~1,5 giây kể từ lần sửa cuối)
+- `DELETE /api/exams/:id` → `204`
+
+Kiểm tra: `title` không rỗng, tối đa 200 ký tự; `data` là object có `doc.sections` là mảng.
+
+```
+ExamData = { doc: ExamDoc, settings, versions: Version[], parseWarnings?: string[] }
+ExamDoc  = { headerHtml: string[], originalCode: string|null,
+             sections: { id, kind: "mcq"|"truefalse"|"short", titleHtml: string|null, questions: Question[] }[] }
+Question = { id, stemHtml, options: { id, html }[],        // mcq: A–D; truefalse: ý a–d; short: []
+             answer: { mcq?: optionId|null, tf?: { [optionId]: boolean|null }, short?: string } }
+settings = { shuffleQuestions, shuffleOptions, shuffleStatements, keepFirstAsOriginal }
+Version  = { code, sectionOrder: { [sectionId]: questionId[] }, optionOrder: { [questionId]: optionId[] },
+             overrides: { [questionId]: { stemHtml?, options?: { [optionId]: html }, answer? } } }
+```
+Câu hỏi chỉ được tráo trong phần của nó. Đáp án của một mã đề suy ra từ vị trí của phương án đúng trong
+`optionOrder`; ý đúng/sai đi theo nội dung ý; trả lời ngắn lấy `overrides.answer.short` nếu có. Mã đề trong
+phần đầu đề nằm trong `<span class="ex-code">` và được thay bằng `Version.code` khi in.
+HTML chỉ gồm b, strong, i, em, u, sub, sup, br, span, div, p, img (src `data:`) với class `ex-…`; luôn được làm sạch bằng DOMPurify.
+
+## 11. Báo cáo & khác
 
 - `GET /api/reports/students/export`, `GET /api/reports/tuition-summary/export?year=`, `GET /api/reports/overdue/export?year=` → .xlsx
 - `POST /api/reminders/run-now` → `{ sent }`

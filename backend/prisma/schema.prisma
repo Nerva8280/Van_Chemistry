@@ -19,6 +19,23 @@ model User {
   providerId String
   createdAt  DateTime @default(now())
   classes    Class[]
+  exams      Exam[]
+}
+
+// Đề thi (tính năng "Tạo đề"). `data` là toàn bộ ExamData của frontend (nội dung đề, ảnh dạng
+// data URL, các mã đề); `sizeBytes` = độ dài JSON để hiển thị dung lượng đang dùng.
+model Exam {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title      String
+  sourceName String?
+  data       Json
+  sizeBytes  Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model Class {

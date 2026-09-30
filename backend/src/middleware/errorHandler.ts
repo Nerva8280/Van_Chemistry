@@ -42,6 +42,10 @@ export function errorHandler(err: any, req: Request, res: Response, next: NextFu
     return res.status(400).json({ error: "Lỗi cơ sở dữ liệu: " + err.message });
   }
 
+  if (err && err.type === "entity.too.large") {
+    return res.status(413).json({ error: "Dữ liệu gửi lên quá lớn." });
+  }
+
   if (err && err.type === "entity.parse.failed") {
     return res.status(400).json({ error: "Dữ liệu JSON gửi lên không hợp lệ." });
   }

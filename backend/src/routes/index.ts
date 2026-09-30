@@ -15,6 +15,7 @@ import reportsRoutes from "./reports.routes";
 import remindersRoutes from "./reminders.routes";
 import periodsRoutes from "./periods.routes";
 import importRoutes from "./import.routes";
+import examsRoutes from "./exams.routes";
 
 const router = Router();
 
@@ -49,5 +50,6 @@ router.use("/reports", requireAuth, reportsRoutes);
 router.use("/reminders", requireAuth, remindersRoutes);
 router.use("/periods", requireAuth, periodsRoutes);
 router.use("/import", requireAuth, importRoutes);
+router.use("/exams", requireAuth, examsRoutes);
 
 export default router;
