@@ -11,9 +11,16 @@ import Overdue from './pages/Overdue';
 import Import from './pages/Import';
 import NotFound from './pages/NotFound';
 
+const IS_TEST = import.meta.env.VITE_APP_ENV === 'test';
+
 export default function App() {
   return (
     <AuthProvider>
+      {IS_TEST && (
+        <div className="sticky top-0 z-50 bg-warning-500 px-4 py-1.5 text-center text-sm font-semibold text-slate-900">
+          MÔI TRƯỜNG TEST: dữ liệu ở đây là bản sao, sửa hay xóa không ảnh hưởng dữ liệu thật.
+        </div>
+      )}
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
