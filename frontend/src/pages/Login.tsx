@@ -1,4 +1,6 @@
+import { FormEvent, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
+import { getErrorMessage } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/authService';
 import Spinner from '../components/ui/Spinner';
@@ -9,11 +11,30 @@ const LOGIN_ERRORS: Record<string, string> = {
   auth_failed: 'Đăng nhập không thành công. Vui lòng thử lại.',
 };
 
+const IS_TEST = import.meta.env.VITE_APP_ENV === 'test';
+
 export default function Login() {
-  const { user, loading } = useAuth();
+  const { user, loading, refresh } = useAuth();
   const [params] = useSearchParams();
   const errorKey = params.get('error');
   const errorMessage = errorKey ? LOGIN_ERRORS[errorKey] ?? LOGIN_ERRORS.auth_failed : null;
+  const [testPassword, setTestPassword] = useState('');
+  const [testBusy, setTestBusy] = useState(false);
+  const [testError, setTestError] = useState('');
+
+  async function handleTestLogin(e: FormEvent) {
+    e.preventDefault();
+    setTestBusy(true);
+    setTestError('');
+    try {
+      await authService.testLogin(testPassword);
+      await refresh();
+    } catch (err) {
+      setTestError(getErrorMessage(err, 'Đăng nhập không thành công.'));
+    } finally {
+      setTestBusy(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -44,6 +65,28 @@ export default function Login() {
           </div>
         )}
 
+        {IS_TEST ? (
+          <form onSubmit={handleTestLogin} className="flex flex-col gap-3">
+            {testError && <Alert message={testError} />}
+            <div>
+              <label className="label" htmlFor="test-password">
+                Mật khẩu môi trường test
+              </label>
+              <input
+                id="test-password"
+                type="password"
+                className="input"
+                value={testPassword}
+                onChange={(e) => setTestPassword(e.target.value)}
+                autoFocus
+                autoComplete="current-password"
+              />
+            </div>
+            <button type="submit" className="btn-primary" disabled={testBusy || !testPassword}>
+              {testBusy ? 'Đang đăng nhập...' : 'Đăng nhập'}
+            </button>
+          </form>
+        ) : (
         <div className="flex flex-col gap-3">
           <a
             href={authService.googleLoginUrl()}
@@ -83,6 +126,7 @@ export default function Login() {
             Đăng nhập với Microsoft
           </a>
         </div>
+        )}
 
         <p className="mt-6 text-center text-xs text-slate-400">
           Bằng việc đăng nhập, bạn đồng ý với các điều khoản sử dụng của hệ thống.

@@ -11,6 +11,11 @@ export const authService = {
     await api.post('/auth/logout');
   },
 
+  /** Chỉ có trên môi trường test. */
+  async testLogin(password: string): Promise<void> {
+    await api.post('/auth/test-login', { password });
+  },
+
   googleLoginUrl(): string {
     return `${API_ORIGIN}/api/auth/google`;
   },

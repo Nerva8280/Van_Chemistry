@@ -47,6 +47,10 @@ export const env = {
   CRON_SECRET: optional("CRON_SECRET", ""),
 
   ALLOWED_EMAILS: optional("ALLOWED_EMAILS", ""),
+
+  APP_ENV: optional("APP_ENV", "production"),
+  // Password login for the test environment only; ignored unless APP_ENV=test.
+  TEST_LOGIN_PASSWORD: optional("TEST_LOGIN_PASSWORD", ""),
 };
 
 export default env;

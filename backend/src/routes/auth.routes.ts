@@ -1,7 +1,8 @@
 import { Router, Request, Response, NextFunction } from "express";
 import passport from "../config/passport";
 import env from "../config/env";
-import { getMe, logout, oauthFailureRedirect } from "../controllers/auth.controller";
+import { getMe, logout, oauthFailureRedirect, testLogin } from "../controllers/auth.controller";
+import asyncHandler from "../utils/asyncHandler";
 
 const router = Router();
 
@@ -28,6 +29,7 @@ router.get("/microsoft/callback", oauthCallback("microsoft"));
 
 router.get("/failure", oauthFailureRedirect);
 
+router.post("/test-login", asyncHandler(testLogin));
 router.get("/me", getMe);
 router.post("/logout", logout);
 
