@@ -558,38 +558,6 @@ export default function Tuition() {
         {data && <p className="text-sm text-slate-500">{visibleStudents.length} học sinh</p>}
       </div>
 
-      {/* Phân trang: mỗi trang 3 tháng, một năm 4 trang */}
-      <nav className="card flex flex-wrap items-center gap-2 p-3" aria-label="Chọn quý">
-        <button type="button" className="btn-secondary px-3" onClick={goPrev} aria-label="Trang trước">
-          ‹ Trước
-        </button>
-        <div className="flex flex-wrap gap-1">
-          {QUARTER_LABELS.map((label, i) => {
-            const q = i + 1;
-            const active = q === quarter;
-            return (
-              <button
-                key={q}
-                type="button"
-                onClick={() => goToPage(year, q)}
-                aria-current={active ? 'page' : undefined}
-                className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  active ? 'bg-primary-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-        <button type="button" className="btn-secondary px-3" onClick={goNext} aria-label="Trang sau">
-          Sau ›
-        </button>
-        <span className="ml-auto text-sm font-semibold text-slate-800">
-          {QUARTER_LABELS[quarter - 1]} / {year}
-        </span>
-      </nav>
-
       {/* Bộ lọc */}
       <div className="card flex flex-wrap items-end gap-3 p-4">
         <div>
@@ -709,6 +677,38 @@ export default function Tuition() {
           </button>
         </div>
       )}
+
+      {/* Phân trang: mỗi trang 3 tháng, một năm 4 trang */}
+      <nav className="card flex flex-wrap items-center gap-2 p-3" aria-label="Chọn quý">
+        <button type="button" className="btn-secondary px-3" onClick={goPrev} aria-label="Trang trước">
+          ‹ Trước
+        </button>
+        <div className="flex flex-wrap gap-1">
+          {QUARTER_LABELS.map((label, i) => {
+            const q = i + 1;
+            const active = q === quarter;
+            return (
+              <button
+                key={q}
+                type="button"
+                onClick={() => goToPage(year, q)}
+                aria-current={active ? 'page' : undefined}
+                className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  active ? 'bg-primary-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+        <button type="button" className="btn-secondary px-3" onClick={goNext} aria-label="Trang sau">
+          Sau ›
+        </button>
+        <span className="ml-auto text-sm font-semibold text-slate-800">
+          {QUARTER_LABELS[quarter - 1]} / {year}
+        </span>
+      </nav>
 
       <div className="card p-0">
         {loading && !data ? (
