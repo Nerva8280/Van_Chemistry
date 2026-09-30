@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Bar,
   BarChart,
@@ -171,30 +172,48 @@ export default function Dashboard() {
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <StatCard label="Tổng số lớp" value={summary.totalClasses} />
+            <StatCard label="Tổng số lớp" value={summary.totalClasses} hint="Bấm để xem các lớp" to="/classes" />
             <StatCard
               label="Tổng số học sinh"
               value={summary.totalStudents}
               hint="Bấm để xem danh sách"
               to={classId ? `/students?classId=${encodeURIComponent(classId)}` : '/students'}
             />
-            <StatCard label="Số học sinh quá hạn" value={summary.overdueStudentCount} hint={scopeHint} />
+            <StatCard
+              label="Số học sinh quá hạn"
+              value={summary.overdueStudentCount}
+              hint={`${scopeHint} · Bấm để xem`}
+              to={`/overdue?year=${yearValue}`}
+            />
           </div>
 
           <div>
             <h2 className="mb-3 text-sm font-semibold text-slate-700">{monthName}</h2>
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-              {STATUS_ORDER.map((s) => (
-                <div key={s} className={`card ${MONTH_STAT_CLASS[s]}`}>
-                  <p className="flex items-center gap-1.5 text-sm font-medium text-slate-500">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: STATUS_COLOR[s] }} />
-                    {STATUS_LABEL[s]}
-                  </p>
-                  <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900">
-                    {data.monthStats[s]} <span className="text-sm font-normal text-slate-400">học sinh</span>
-                  </p>
-                </div>
-              ))}
+              {STATUS_ORDER.map((s) => {
+                const params = new URLSearchParams({ year: String(yearValue), status: s });
+                if (selectedMonth) {
+                  params.set('quarter', String(Math.ceil(selectedMonth / 3)));
+                  params.set('month', String(selectedMonth));
+                }
+                if (classId) params.set('classId', classId);
+                return (
+                  <Link
+                    key={s}
+                    to={`/tuition?${params.toString()}`}
+                    className={`card ${MONTH_STAT_CLASS[s]} transition-shadow hover:shadow-md hover:ring-1 hover:ring-primary-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300`}
+                    title={`Xem học sinh "${STATUS_LABEL[s]}" trong bảng học phí`}
+                  >
+                    <p className="flex items-center gap-1.5 text-sm font-medium text-slate-500">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: STATUS_COLOR[s] }} />
+                      {STATUS_LABEL[s]}
+                    </p>
+                    <p className="mt-1 text-2xl font-semibold tabular-nums text-primary-600">
+                      {data.monthStats[s]} <span className="text-sm font-normal text-slate-400">học sinh</span>
+                    </p>
+                  </Link>
+                );
+              })}
             </div>
           </div>
 

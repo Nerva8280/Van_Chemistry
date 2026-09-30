@@ -6,6 +6,8 @@ export interface TuitionGridParams {
   quarter?: number;
   classId?: string;
   status?: PaymentStatus;
+  /** Chỉ xét trạng thái trong tháng này của trang. */
+  statusMonth?: number;
   search?: string;
 }
 
@@ -22,6 +24,7 @@ export const tuitionService = {
         quarter: params.quarter || undefined,
         classId: params.classId || undefined,
         status: params.status || undefined,
+        statusMonth: (params.status && params.statusMonth) || undefined,
         search: params.search?.trim() || undefined,
       },
     });

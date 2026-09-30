@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import Spinner from '../components/ui/Spinner';
 import Alert from '../components/ui/Alert';
 import EmptyState from '../components/ui/EmptyState';
@@ -106,12 +106,33 @@ function DueText({ period }: { period: Period }) {
   );
 }
 
-export default function Tuition() {
+/** Bộ lọc ban đầu từ đường dẫn (vd. mở từ Bảng điều khiển: /tuition?year=2026&quarter=3&status=overdue). */
+function initialFilters(search: string) {
+  const q = new URLSearchParams(search);
   const today = new Date();
-  const [year, setYear] = useState(today.getFullYear());
-  const [quarter, setQuarter] = useState(Math.floor(today.getMonth() / 3) + 1);
-  const [classId, setClassId] = useState('');
-  const [status, setStatus] = useState<'' | PaymentStatus>('');
+  const y = Number(q.get('year'));
+  const qu = Number(q.get('quarter'));
+  const st = q.get('status') as PaymentStatus | null;
+  return {
+    year: Number.isInteger(y) && y >= 2000 && y <= 3000 ? y : today.getFullYear(),
+    quarter: Number.isInteger(qu) && qu >= 1 && qu <= 4 ? qu : Math.floor(today.getMonth() / 3) + 1,
+    status: st && STATUS_ORDER.includes(st) ? st : ('' as const),
+    classId: q.get('classId') ?? '',
+    statusMonth: (() => {
+      const m = Number(q.get('month'));
+      return Number.isInteger(m) && m >= 1 && m <= 12 ? m : null;
+    })(),
+  };
+}
+
+export default function Tuition() {
+  const location = useLocation();
+  const [initial] = useState(() => initialFilters(location.search));
+  const [year, setYear] = useState(initial.year);
+  const [quarter, setQuarter] = useState(initial.quarter);
+  const [classId, setClassId] = useState(initial.classId);
+  const [status, setStatus] = useState<'' | PaymentStatus>(initial.status);
+  const [statusMonth, setStatusMonth] = useState<number | null>(initial.statusMonth);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 350);
 
@@ -142,6 +163,7 @@ export default function Tuition() {
         quarter,
         classId,
         status: status || undefined,
+        statusMonth: statusMonth ?? undefined,
         search: debouncedSearch,
       });
       if (id !== requestId.current) return;
@@ -151,7 +173,7 @@ export default function Tuition() {
     } finally {
       if (id === requestId.current) setLoading(false);
     }
-  }, [year, quarter, classId, status, debouncedSearch]);
+  }, [year, quarter, classId, status, statusMonth, debouncedSearch]);
 
   useEffect(() => {
     load();
@@ -231,6 +253,7 @@ export default function Tuition() {
 
   function goToPage(nextYear: number, nextQuarter: number) {
     setSelected(new Set());
+    setStatusMonth(null);
     setYear(nextYear);
     setQuarter(nextQuarter);
   }
@@ -409,6 +432,7 @@ export default function Tuition() {
   function resetFilters() {
     setClassId('');
     setStatus('');
+    setStatusMonth(null);
     setSearch('');
   }
 
@@ -605,7 +629,10 @@ export default function Tuition() {
             id="f-status"
             className="input w-auto"
             value={status}
-            onChange={(e) => setStatus(e.target.value as '' | PaymentStatus)}
+            onChange={(e) => {
+              setStatus(e.target.value as '' | PaymentStatus);
+              setStatusMonth(null);
+            }}
           >
             <option value="">Tất cả</option>
             {STATUS_ORDER.map((s) => (
@@ -615,6 +642,16 @@ export default function Tuition() {
             ))}
           </select>
         </div>
+        {status && statusMonth && (
+          <button
+            type="button"
+            className="mb-1 flex items-center gap-1 self-end rounded-full bg-primary-50 px-3 py-1.5 text-xs font-medium text-primary-700 ring-1 ring-primary-100 hover:bg-primary-100"
+            onClick={() => setStatusMonth(null)}
+            title="Bỏ giới hạn tháng, lọc trạng thái trong cả 3 tháng"
+          >
+            Chỉ Tháng {statusMonth} <span aria-hidden="true">×</span>
+          </button>
+        )}
         <div className="min-w-[180px] flex-1">
           <label className="label text-xs" htmlFor="f-search">
             Tìm học sinh

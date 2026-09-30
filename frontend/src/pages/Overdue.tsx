@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import YearSelect from '../components/ui/YearSelect';
 import Spinner from '../components/ui/Spinner';
 import Alert from '../components/ui/Alert';
@@ -9,7 +10,11 @@ import { OverdueRow } from '../types';
 import { formatCurrency } from '../utils/format';
 
 export default function Overdue() {
-  const [year, setYear] = useState(new Date().getFullYear());
+  const location = useLocation();
+  const [year, setYear] = useState(() => {
+    const y = Number(new URLSearchParams(location.search).get('year'));
+    return Number.isInteger(y) && y >= 2000 && y <= 3000 ? y : new Date().getFullYear();
+  });
   const [rows, setRows] = useState<OverdueRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

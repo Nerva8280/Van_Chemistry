@@ -57,6 +57,8 @@ export async function getTuitionGrid(req: Request, res: Response) {
   const status = STATUSES.includes(req.query.status as PaymentStatus)
     ? (req.query.status as PaymentStatus)
     : undefined;
+  // Optional: apply the status filter to one month of the page only (matches the dashboard's monthly counts).
+  const statusMonth = parseIntParam(req.query.statusMonth);
 
   const classWhere: any = { userId };
   if (classId) classWhere.id = classId;
@@ -100,7 +102,9 @@ export async function getTuitionGrid(req: Request, res: Response) {
       active: s.active,
       payments: s.payments.map((p) => serializePayment(p, now)),
     }))
-    .filter((s) => !status || s.payments.some((p) => p.status === status))
+    .filter(
+      (s) => !status || s.payments.some((p) => p.status === status && (!statusMonth || p.month === statusMonth))
+    )
     .sort((a, b) => (classOrder.get(a.classId)! - classOrder.get(b.classId)!));
 
   // Latest period of each class before this page, to prefill the start date of the next one.
