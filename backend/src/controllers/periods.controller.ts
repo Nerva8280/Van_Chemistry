@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../config/db";
 import { AppError } from "../middleware/errorHandler";
-import { buildDueDate } from "../services/overdue.service";
 import { createPaymentsForNewPeriod, serializePeriod } from "../services/tuition.service";
 
 async function assertClass(classId: string, userId: string) {
@@ -49,7 +48,6 @@ export async function createPeriod(req: Request, res: Response) {
   const { year, month } = parseYearMonth(body);
   const startDate = parseDate(body.startDate, "Ngày bắt đầu", false);
   const endDate = parseDate(body.endDate, "Ngày kết thúc", false);
-  const dueDate = parseDate(body.dueDate, "Hạn đóng", false);
   assertRange(startDate, endDate);
   // Who is enrolled in the new period: every active student (default), only those enrolled
   // in the class's previous period, or nobody yet.
@@ -72,7 +70,7 @@ export async function createPeriod(req: Request, res: Response) {
       onlyStudentIds = prev ? prev.payments.map((p) => p.studentId) : [];
     }
     const created = await tx.tuitionPeriod.create({
-      data: { classId: cls.id, name, year, month, startDate, endDate, dueDate },
+      data: { classId: cls.id, name, year, month, startDate, endDate },
     });
     if (enroll !== "none") {
       await createPaymentsForNewPeriod(tx, { periodId: created.id, classId: cls.id, onlyStudentIds });
@@ -87,11 +85,6 @@ export async function generateMonthlyPeriods(req: Request, res: Response) {
   const cls = await assertClass(req.params.id, req.ownerId!);
   const year = Number(req.body?.year);
   if (!Number.isInteger(year) || year < 2000 || year > 3000) throw new AppError("Năm không hợp lệ.");
-  const rawDueDay = req.body?.dueDay;
-  const dueDay = rawDueDay !== undefined && rawDueDay !== null && rawDueDay !== "" ? Number(rawDueDay) : undefined;
-  if (dueDay !== undefined && (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 28)) {
-    throw new AppError("Ngày hạn đóng phải từ 1 đến 28.");
-  }
 
   const existing = await prisma.tuitionPeriod.findMany({ where: { classId: cls.id, year } });
   const taken = new Set(existing.map((p) => p.month));
@@ -108,7 +101,6 @@ export async function generateMonthlyPeriods(req: Request, res: Response) {
           month,
           startDate: new Date(year, month - 1, 1),
           endDate: new Date(year, month, 0),
-          dueDate: dueDay !== undefined ? buildDueDate(year, month, dueDay) : null,
         },
       });
       await createPaymentsForNewPeriod(tx, { periodId: period.id, classId: cls.id });
@@ -148,7 +140,6 @@ export async function updatePeriod(req: Request, res: Response) {
   }
   if (body.startDate !== undefined) data.startDate = parseDate(body.startDate, "Ngày bắt đầu", false);
   if (body.endDate !== undefined) data.endDate = parseDate(body.endDate, "Ngày kết thúc", false);
-  if (body.dueDate !== undefined) data.dueDate = parseDate(body.dueDate, "Hạn đóng", false);
   assertRange(
     (data.startDate as Date | null | undefined) ?? period.startDate,
     (data.endDate as Date | null | undefined) ?? period.endDate

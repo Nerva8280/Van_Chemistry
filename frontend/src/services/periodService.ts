@@ -11,7 +11,6 @@ export interface PeriodPayload {
   /** yyyy-MM-dd hoặc null */
   startDate?: string | null;
   endDate?: string | null;
-  dueDate?: string | null;
   enroll?: EnrollMode;
 }
 
@@ -26,11 +25,8 @@ export const periodService = {
     return res.data;
   },
 
-  async generate(classId: string, year: number, dueDay?: number): Promise<{ created: number; periods: Period[] }> {
-    const res = await api.post<{ created: number; periods: Period[] }>(`/classes/${classId}/periods/generate`, {
-      year,
-      dueDay,
-    });
+  async generate(classId: string, year: number): Promise<{ created: number; periods: Period[] }> {
+    const res = await api.post<{ created: number; periods: Period[] }>(`/classes/${classId}/periods/generate`, { year });
     return res.data;
   },
 

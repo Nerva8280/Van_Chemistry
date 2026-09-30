@@ -46,7 +46,6 @@ interface ParsedPeriod {
   month: number;
   startDate: Date | null;
   endDate: Date | null;
-  dueDate: Date | null;
 }
 
 interface ParsedStudent {
@@ -81,7 +80,6 @@ export interface ImportPreview {
       month: number;
       startDate: Date | null;
       endDate: Date | null;
-      dueDate: Date | null;
       enrolled: number;
       paid: number;
       partial: number;
@@ -153,7 +151,7 @@ function parsePeriodHeader(header: string, col: number, year: number): ParsedPer
     if (month === null) {
       return `Cột "${header}" không rõ là kỳ học phí nào (cần dạng "Tháng 7 (15/6-14/7)").`;
     }
-    return { col, header, name: header, year, month, startDate: null, endDate: null, dueDate: null };
+    return { col, header, name: header, year, month, startDate: null, endDate: null };
   }
 
   const name = m[1].trim() || header;
@@ -172,7 +170,7 @@ function parsePeriodHeader(header: string, col: number, year: number): ParsedPer
   } else {
     placed = dominantMonth(start, end);
   }
-  return { col, header, name, year: placed.year, month: placed.month, startDate: start, endDate: end, dueDate: null };
+  return { col, header, name, year: placed.year, month: placed.month, startDate: start, endDate: end };
 }
 
 function mode(values: number[]): number {
@@ -462,7 +460,6 @@ function classStats(plan: ClassPlan) {
       month: p.month,
       startDate: p.startDate,
       endDate: p.endDate,
-      dueDate: p.dueDate,
       enrolled,
       paid,
       partial,
@@ -513,11 +510,10 @@ export async function commitTuitionImport(userId: string, plans: ClassPlan[]) {
 
         const periodIds = new Map<string, string>();
         for (const p of plan.periods) {
-          // Re-imports must not wipe a due date the teacher has set since.
           const data = { name: p.name, startDate: p.startDate, endDate: p.endDate };
           const saved = await tx.tuitionPeriod.upsert({
             where: { classId_year_month: { classId: cls.id, year: p.year, month: p.month } },
-            create: { classId: cls.id, year: p.year, month: p.month, ...data, dueDate: p.dueDate },
+            create: { classId: cls.id, year: p.year, month: p.month, ...data },
             update: data,
           });
           periodIds.set(`${p.year}-${p.month}`, saved.id);

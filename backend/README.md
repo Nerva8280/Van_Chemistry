@@ -46,7 +46,6 @@ npm install
    GMAIL_USER=
    GMAIL_APP_PASSWORD=
 
-   TUITION_DUE_DAY=5
    ```
 
 ## 4. Khởi tạo cơ sở dữ liệu với Prisma

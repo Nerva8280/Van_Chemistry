@@ -50,7 +50,6 @@ CREATE TABLE "TuitionPeriod" (
     "month" INTEGER NOT NULL,
     "startDate" TIMESTAMP(3),
     "endDate" TIMESTAMP(3),
-    "dueDate" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "TuitionPeriod_pkey" PRIMARY KEY ("id")

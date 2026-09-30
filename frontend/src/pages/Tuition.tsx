@@ -5,7 +5,6 @@ import Alert from '../components/ui/Alert';
 import EmptyState from '../components/ui/EmptyState';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import PaymentEditModal, { PaymentEditTarget, paidDateText } from '../components/tuition/PaymentEditModal';
-import DueDateModal, { DueDateEntry } from '../components/tuition/DueDateModal';
 import CreatePeriodsModal, { CreatePeriodCandidate } from '../components/tuition/CreatePeriodsModal';
 import { tuitionService } from '../services/tuitionService';
 import { classService } from '../services/classService';
@@ -27,7 +26,6 @@ import {
   formatDateRange,
   formatNumber,
   formatShortRange,
-  toDateInput,
 } from '../utils/format';
 import { STATUS_CELL_CLASS, STATUS_COLOR, STATUS_LABEL, STATUS_ORDER } from '../utils/status';
 
@@ -56,7 +54,7 @@ function periodTitle(period: Period | undefined, fallbackMonth: number): string 
 
 function cellTooltip(payment: Payment, period: Period | undefined): string {
   const lines = [periodTitle(period, payment.month)];
-  if (period) lines.push(`Hạn đóng: ${period.dueDate ? formatDate(period.dueDate) : 'Chưa đặt hạn'}`);
+  if (period) lines.push(`Hạn đóng: ${period.endDate ? formatDate(period.endDate) : 'Chưa có ngày kết thúc kỳ'}`);
   lines.push(`Trạng thái: ${STATUS_LABEL[payment.status]}`);
   lines.push(`Đã đóng: ${formatCurrency(payment.paidAmount)} / ${formatCurrency(payment.expectedAmount)}`);
   const dateText = paidDateText(payment);
@@ -85,7 +83,20 @@ function previousPeriodEnd(cls: TuitionGridClass, col: TuitionColumn): string | 
     .filter((p) => p.year === col.year && p.month < col.month)
     .sort((a, b) => b.month - a.month)[0];
   const prev = inPage ?? cls.previousPeriod;
-  return prev ? prev.endDate ?? prev.dueDate ?? prev.startDate : null;
+  return prev ? prev.endDate ?? prev.startDate : null;
+}
+
+/** Hạn đóng của một kỳ = ngày cuối kỳ. */
+function DueText({ period }: { period: Period }) {
+  return period.endDate ? (
+    <span className="block whitespace-nowrap text-[11px] font-medium text-primary-600" title={`Hạn đóng ${period.name}`}>
+      Hạn: {formatDate(period.endDate)}
+    </span>
+  ) : (
+    <span className="block whitespace-nowrap text-[11px] text-slate-400" title="Kỳ chưa có ngày kết thúc nên chưa có hạn đóng">
+      Chưa có hạn
+    </span>
+  );
 }
 
 export default function Tuition() {
@@ -107,7 +118,6 @@ export default function Tuition() {
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [editTarget, setEditTarget] = useState<PaymentEditTarget | null>(null);
-  const [dueColumn, setDueColumn] = useState<TuitionColumn | null>(null);
   const [createTarget, setCreateTarget] = useState<{ column: TuitionColumn; onlyClassId: string | null } | null>(null);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -192,26 +202,6 @@ export default function Tuition() {
 
   const shownClasses = useMemo(() => (groups.length ? groups.map((g) => g.cls) : data?.classes ?? []), [groups, data]);
 
-  /** Dòng hạn đóng dưới tiêu đề cột. */
-  const columnDue = useMemo(() => {
-    const result = new Map<string, { text: string; muted: boolean }>();
-    for (const col of columns) {
-      const periods = shownClasses.map((c) => periodOf(c, col)).filter((p): p is Period => !!p);
-      if (periods.length === 0) continue;
-      const dues = new Set(periods.map((p) => toDateInput(p.dueDate)));
-      if (dues.size > 1) result.set(colKey(col), { text: 'Hạn: nhiều ngày', muted: false });
-      else if (periods[0].dueDate) result.set(colKey(col), { text: `Hạn: ${formatDate(periods[0].dueDate)}`, muted: false });
-      else result.set(colKey(col), { text: 'Chưa đặt hạn', muted: true });
-    }
-    return result;
-  }, [columns, shownClasses]);
-
-  const dueEntries: DueDateEntry[] = useMemo(() => {
-    if (!dueColumn) return [];
-    return shownClasses
-      .map((c) => ({ className: c.name, period: periodOf(c, dueColumn) }))
-      .filter((e): e is DueDateEntry => !!e.period);
-  }, [dueColumn, shownClasses]);
 
   /** Lớp đang hiển thị chưa có kỳ trong tháng `col` (để tạo kỳ mới). */
   function missingClasses(col: TuitionColumn): CreatePeriodCandidate[] {
@@ -769,7 +759,8 @@ export default function Tuition() {
                   </th>
                   {columns.map((col) => {
                     const sub = columnSubtitles.get(colKey(col));
-                    const due = columnDue.get(colKey(col));
+                    // Grouped view shows each class's due date on its class row; a single class shows it here.
+                    const singlePeriod = !grouped && shownClasses.length === 1 ? periodOf(shownClasses[0], col) : undefined;
                     return (
                       <th
                         key={colKey(col)}
@@ -778,22 +769,7 @@ export default function Tuition() {
                       >
                         <span className="block whitespace-nowrap text-slate-700">Tháng {col.month}</span>
                         {sub && <span className="block whitespace-nowrap text-[11px] font-normal text-slate-400">{sub}</span>}
-                        {due && (
-                          <button
-                            type="button"
-                            onClick={() => setDueColumn(col)}
-                            className={`mt-0.5 flex items-center gap-1 whitespace-nowrap rounded px-1 -mx-1 text-[11px] font-medium hover:bg-primary-50 hover:text-primary-700 ${
-                              due.muted ? 'text-slate-400' : 'text-primary-600'
-                            }`}
-                            title={`Đặt hạn đóng cho Tháng ${col.month}`}
-                            aria-label={`Đặt hạn đóng cho Tháng ${col.month}/${col.year}`}
-                          >
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
-                              <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                            {due.text}
-                          </button>
-                        )}
+                        {singlePeriod && <DueText period={singlePeriod} />}
                         {missingClasses(col).length > 0 && (
                           <button
                             type="button"
@@ -834,6 +810,7 @@ export default function Tuition() {
                           </td>
                           {columns.map((col) => (
                             <td key={colKey(col)} className="border-b border-l border-slate-200 bg-slate-100 px-2 py-1">
+                              {periodOf(g.cls, col) && <DueText period={periodOf(g.cls, col)!} />}
                               {!periodOf(g.cls, col) && (
                                 <button
                                   type="button"
@@ -866,19 +843,6 @@ export default function Tuition() {
         loading={confirmLoading}
         onConfirm={runConfirm}
         onCancel={() => setConfirm(null)}
-      />
-
-      <DueDateModal
-        column={dueColumn}
-        entries={dueEntries}
-        onClose={() => setDueColumn(null)}
-        onSaved={(n, done) => {
-          if (n > 0) {
-            setInfo(`Đã cập nhật hạn đóng cho ${n} lớp.`);
-            load();
-          }
-          if (done) setDueColumn(null);
-        }}
       />
 
       <CreatePeriodsModal

@@ -13,6 +13,7 @@ export const STATUS_LABELS: Record<PaymentStatus, string> = {
   unpaid: "Chưa đóng",
 };
 
+/** A period is due on its last day (endDate); a period without an end date is never overdue. */
 export function isOverdue(dueDate: Date | null, now: Date = new Date()): boolean {
   return dueDate !== null && computeOverdue({ isPaid: false, dueDate, now }).isOverdue;
 }
@@ -36,7 +37,6 @@ export function serializePeriod(period: TuitionPeriod) {
     month: period.month,
     startDate: period.startDate,
     endDate: period.endDate,
-    dueDate: period.dueDate,
   };
 }
 
@@ -54,7 +54,7 @@ export function serializePayment(p: TuitionPayment & { period: TuitionPeriod }, 
     isPaid: p.isPaid,
     paidDate: p.paidDate,
     note: p.note,
-    status: paymentStatus({ isPaid: p.isPaid, paidAmount, dueDate: p.period.dueDate }, now),
+    status: paymentStatus({ isPaid: p.isPaid, paidAmount, dueDate: p.period.endDate }, now),
     updatedAt: p.updatedAt,
   };
 }
@@ -67,7 +67,7 @@ export async function createPaymentsForNewStudent(
   const today = startOfDay(new Date());
   const periods = await db.tuitionPeriod.findMany({ where: { classId: params.classId } });
   const open = periods.filter((p) => {
-    const last = p.endDate ?? p.dueDate ?? p.startDate;
+    const last = p.endDate ?? p.startDate;
     return last === null || startOfDay(last) >= today;
   });
   if (open.length === 0) return;

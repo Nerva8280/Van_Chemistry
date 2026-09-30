@@ -18,7 +18,6 @@ interface Row {
   checked: boolean;
   start: string;
   end: string;
-  due: string;
 }
 
 interface Props {
@@ -65,7 +64,6 @@ export default function CreatePeriodsModal({ column, candidates, onlyClassId, on
         checked: !onlyClassId || c.classId === onlyClassId,
         start: defaultStart(c, column),
         end: '',
-        due: '',
       };
     });
     setRows(init);
@@ -91,7 +89,7 @@ export default function CreatePeriodsModal({ column, candidates, onlyClassId, on
     if (!first) return;
     setRows((prev) => {
       const next = { ...prev };
-      chosen.forEach((c) => (next[c.classId] = { ...next[c.classId], start: first.start, end: first.end, due: first.due }));
+      chosen.forEach((c) => (next[c.classId] = { ...next[c.classId], start: first.start, end: first.end }));
       return next;
     });
   }
@@ -122,7 +120,6 @@ export default function CreatePeriodsModal({ column, candidates, onlyClassId, on
           month: column.month,
           startDate: r.start || null,
           endDate: r.end || null,
-          dueDate: r.due || null,
           enroll,
         });
       })
@@ -183,8 +180,7 @@ export default function CreatePeriodsModal({ column, candidates, onlyClassId, on
                   <tr>
                     <th className="px-3 py-2">Lớp</th>
                     <th className="px-3 py-2">Từ ngày</th>
-                    <th className="px-3 py-2">Đến ngày</th>
-                    <th className="px-3 py-2">Hạn đóng</th>
+                    <th className="px-3 py-2">Đến ngày (hạn đóng)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -230,16 +226,6 @@ export default function CreatePeriodsModal({ column, candidates, onlyClassId, on
                             aria-label={`Đến ngày, ${c.className}`}
                           />
                         </td>
-                        <td className="px-3 py-2">
-                          <input
-                            type="date"
-                            className="input w-auto py-1.5"
-                            value={r.due}
-                            disabled={!r.checked}
-                            onChange={(e) => update(c.classId, { due: e.target.value })}
-                            aria-label={`Hạn đóng, ${c.className}`}
-                          />
-                        </td>
                       </tr>
                     );
                   })}
@@ -247,7 +233,7 @@ export default function CreatePeriodsModal({ column, candidates, onlyClassId, on
               </table>
             </div>
             <p className="-mt-2 text-xs text-slate-500">
-              "Đến ngày" và "Hạn đóng" có thể để trống và điền sau khi biết.
+              Hạn đóng học phí là ngày cuối kỳ ("Đến ngày"). Có thể để trống và điền sau khi biết.
               {chosen.length > 1 && (
                 <>
                   {' '}

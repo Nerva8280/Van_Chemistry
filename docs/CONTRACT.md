@@ -8,7 +8,7 @@ Tiền là số nguyên VNĐ (đồng). Ngày là chuỗi ISO; frontend hiển t
 
 - **Lớp (Class)**: có `name` và `defaultTuitionFee`.
 - **Kỳ học phí (TuitionPeriod)**: thuộc một lớp, ví dụ "Tháng 7 (15/6-14/7)". Có `name` ("Tháng 7"), `year`, `month`
-  (1-12, để xếp cột thẳng hàng giữa các lớp), `startDate`, `endDate` (có thể null), `dueDate` (hạn đóng).
+  (1-12, để xếp cột thẳng hàng giữa các lớp), `startDate`, `endDate` (có thể null). **Hạn đóng = `endDate`** (ngày cuối kỳ); kỳ không có `endDate` thì không bao giờ quá hạn.
   Mỗi lớp có tối đa một kỳ cho mỗi (year, month).
 - **Khoản học phí (TuitionPayment)**: một học sinh trong một kỳ. `expectedAmount` (học phí dự kiến), `paidAmount`
   (số đã đóng), `isPaid`, `paidDate` (null = không rõ ngày/chưa đóng), `note`.
@@ -16,7 +16,7 @@ Tiền là số nguyên VNĐ (đồng). Ngày là chuỗi ISO; frontend hiển t
 - **Trạng thái** (`status`), backend tính sẵn:
   - `paid` — Đã đóng (xanh lá)
   - `partial` — Đóng một phần: chưa `isPaid` nhưng `paidAmount > 0` (cam)
-  - `overdue` — Quá hạn: `paidAmount = 0`, chưa đóng, `dueDate` < hôm nay (đỏ)
+  - `overdue` — Quá hạn: `paidAmount = 0`, chưa đóng, `endDate` < hôm nay (đỏ)
   - `unpaid` — Chưa đóng, chưa tới hạn (xám)
 
 ## 2. Auth (không đổi)
@@ -34,15 +34,15 @@ Tiền là số nguyên VNĐ (đồng). Ngày là chuỗi ISO; frontend hiển t
 
 ## 4. Kỳ học phí
 
-`Period = { id, classId, name, year, month, startDate: string|null, endDate: string|null, dueDate }`
+`Period = { id, classId, name, year, month, startDate: string|null, endDate: string|null }`
 
 - `GET /api/classes/:id/periods` → `Period[]`
-- `POST /api/classes/:id/periods` body `{ name, year, month, startDate?, endDate?, dueDate?, enroll? }` → `Period`
-  (dueDate để trống = chưa đặt hạn). `enroll`: `"all"` (mặc định, mọi học sinh đang học), `"previous"` (chỉ học sinh
+- `POST /api/classes/:id/periods` body `{ name, year, month, startDate?, endDate?, enroll? }` → `Period`
+  `enroll`: `"all"` (mặc định, mọi học sinh đang học), `"previous"` (chỉ học sinh
   có trong kỳ liền trước của lớp), `"none"` (chưa thêm ai). `409` nếu trùng tháng.
-- `POST /api/classes/:id/periods/generate` body `{ year, dueDay? }` → `{ created: number, periods: Period[] }`
-  Tạo các kỳ "Tháng 1".."Tháng 12" còn thiếu của năm đó (dueDay 1-28, mặc định 5).
-- `PUT /api/periods/:id` body `{ name?, year?, month?, startDate?, endDate?, dueDate? }` → `Period`
+- `POST /api/classes/:id/periods/generate` body `{ year }` → `{ created: number, periods: Period[] }`
+  Tạo các kỳ "Tháng 1".."Tháng 12" còn thiếu của năm đó (từ ngày 1 đến cuối tháng).
+- `PUT /api/periods/:id` body `{ name?, year?, month?, startDate?, endDate? }` → `Period`
 - `DELETE /api/periods/:id` → `204` (xóa luôn các khoản học phí của kỳ).
 
 ## 5. Học sinh
@@ -133,7 +133,7 @@ Nếu không truyền `month`, `selectedMonth` = tháng mới nhất đã bắt 
 Preview = {
   year, unit,
   classes: { name, exists, defaultFee, studentCount,
-             periods: { name, header, year, month, startDate, endDate, dueDate,
+             periods: { name, header, year, month, startDate, endDate,
                         enrolled, paid, partial, unpaid, collected }[] }[],
   totals: { sheet, label, computed, manual: number|null, match: boolean|null }[],
   studentCount, paymentCount,

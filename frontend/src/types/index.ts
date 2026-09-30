@@ -28,8 +28,6 @@ export interface Period {
   month: number;
   startDate: string | null;
   endDate: string | null;
-  /** null = chưa đặt hạn đóng */
-  dueDate: string | null;
 }
 
 export interface Student {
@@ -213,7 +211,6 @@ export interface PreviewPeriod {
   month: number;
   startDate: string | null;
   endDate: string | null;
-  dueDate: string | null;
   enrolled: number;
   paid: number;
   partial: number;

@@ -327,7 +327,7 @@ export default function Dashboard() {
                       <td className="px-4 py-2.5 text-slate-600">{row.className}</td>
                       <td className="px-4 py-2.5 text-slate-600">{row.periodName}</td>
                       <td className="px-4 py-2.5 text-slate-600">
-                        {row.dueDate ? formatDate(row.dueDate) : <span className="text-slate-400">Chưa đặt hạn</span>}
+                        {row.dueDate ? formatDate(row.dueDate) : <span className="text-slate-400">Chưa có</span>}
                       </td>
                       <td className="px-4 py-2.5 text-right tabular-nums text-slate-700">{formatCurrency(row.paidAmount)}</td>
                       <td className="px-4 py-2.5 text-right tabular-nums font-medium text-slate-800">

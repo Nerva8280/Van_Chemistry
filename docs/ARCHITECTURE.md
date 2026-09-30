@@ -40,7 +40,7 @@
 ## 4. Luồng nghiệp vụ chính
 
 ### Kỳ học phí và bảng học phí
-Mỗi lớp có các **kỳ học phí** (`TuitionPeriod`) với khoảng ngày và hạn đóng riêng, ví dụ "Tháng 7 (15/6-14/7)". Mỗi kỳ được gắn một `year/month` để các lớp khác nhau xếp chung một cột tháng. Mỗi học sinh học một kỳ thì có một `TuitionPayment` ghi học phí dự kiến và số đã đóng. Nếu không có bản ghi, học sinh không học kỳ đó.
+Mỗi lớp có các **kỳ học phí** (`TuitionPeriod`) với khoảng ngày riêng (hạn đóng là ngày cuối kỳ), ví dụ "Tháng 7 (15/6-14/7)". Mỗi kỳ được gắn một `year/month` để các lớp khác nhau xếp chung một cột tháng. Mỗi học sinh học một kỳ thì có một `TuitionPayment` ghi học phí dự kiến và số đã đóng. Nếu không có bản ghi, học sinh không học kỳ đó.
 - Tick ô: đánh dấu đã đóng đủ, ghi ngày hôm nay nếu chưa có ngày đóng.
 - Bỏ tick: giao diện hỏi xác nhận trước, rồi xoá số tiền và ngày đóng.
 - Ghi số tiền nhỏ hơn mức dự kiến thì khoản đó thành "Đóng một phần". Khoản này chỉ được coi là hoàn tất khi người dùng xác nhận.

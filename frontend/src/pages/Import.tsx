@@ -131,7 +131,7 @@ function PreviewView({ preview }: { preview: ImportPreview }) {
                       </td>
                       <td className="px-3 py-1.5 text-slate-600">{formatDateRange(p.startDate, p.endDate) || '—'}</td>
                       <td className="px-3 py-1.5 text-slate-600">
-                        {p.dueDate ? formatDate(p.dueDate) : <span className="text-slate-400">Chưa đặt hạn</span>}
+                        {p.endDate ? formatDate(p.endDate) : <span className="text-slate-400">Chưa có</span>}
                       </td>
                       <td className="px-3 py-1.5 text-right tabular-nums">{p.enrolled}</td>
                       <td className="px-3 py-1.5 text-right tabular-nums text-success-700">{p.paid}</td>

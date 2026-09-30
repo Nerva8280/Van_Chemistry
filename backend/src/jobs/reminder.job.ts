@@ -35,7 +35,7 @@ export async function runReminderSweep(): Promise<{ sent: number }> {
   let sent = 0;
 
   for (const payment of candidates) {
-    const dueDate = payment.period.dueDate;
+    const dueDate = payment.period.endDate;
     if (!dueDate) continue;
     const reminderType = resolveReminderType(dueDate, today);
     if (!reminderType) continue;

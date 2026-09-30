@@ -119,7 +119,7 @@ export default function PaymentEditModal({ target, onClose, onSaved, onRemoved }
             </dd>
             <dt className="text-slate-500">Hạn đóng</dt>
             <dd className="text-slate-700">
-              {period?.dueDate ? formatDate(period.dueDate) : <span className="text-slate-400">Chưa đặt hạn</span>}
+              {period?.endDate ? formatDate(period.endDate) : <span className="text-slate-400">Chưa có ngày kết thúc kỳ</span>}
             </dd>
             <dt className="text-slate-500">Học phí dự kiến</dt>
             <dd className="font-medium tabular-nums text-slate-800">{formatCurrency(expected)}</dd>

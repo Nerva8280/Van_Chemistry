@@ -42,8 +42,7 @@ erDiagram
         int year
         int month "1-12, để xếp cột giữa các lớp"
         datetime startDate
-        datetime endDate
-        datetime dueDate "hạn đóng"
+        datetime endDate "ngày cuối kỳ = hạn đóng"
     }
 
     TUITION_PAYMENT {
@@ -75,6 +74,6 @@ Ràng buộc quan trọng:
 - Xóa lớp → xóa các kỳ; xóa kỳ hoặc học sinh → xóa các khoản học phí liên quan.
 
 Trạng thái hiển thị (tính khi đọc, không lưu): Đã đóng (`isPaid`), Đóng một phần (`paidAmount > 0`),
-Quá hạn (chưa đóng đồng nào và `dueDate` đã qua), Chưa đóng.
+Quá hạn (chưa đóng đồng nào và `endDate` đã qua), Chưa đóng.
 
 SQL tương ứng: [DATABASE.sql](DATABASE.sql).

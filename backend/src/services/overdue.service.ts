@@ -1,14 +1,3 @@
-import env from "../config/env";
-
-/**
- * Builds the due date for a given (year, month) using TUITION_DUE_DAY
- * (default day 5 of that month), at local midnight.
- */
-export function buildDueDate(year: number, month: number, dueDay: number = env.TUITION_DUE_DAY): Date {
-  // month is 1-12; JS Date month is 0-11.
-  return new Date(year, month - 1, dueDay, 0, 0, 0, 0);
-}
-
 export type Severity = "orange" | "red";
 
 export interface OverdueComputationInput {
@@ -60,7 +49,6 @@ export function isExactDaysAgo(date: Date, today: Date, daysAgo: number): boolea
 }
 
 export default {
-  buildDueDate,
   computeOverdue,
   isExactDaysAgo,
 };

@@ -50,7 +50,7 @@ model Student {
 
 // A billing period of one class, e.g. "Tháng 7 (15/6-14/7)". `year`/`month` place it on
 // the shared month axis so periods of different classes line up in the grid and dashboard.
-// dueDate is chosen by the teacher (billing is per block of sessions); null = never overdue.
+// Tuition is due on the period's last day (endDate); a period without an end date is never overdue.
 model TuitionPeriod {
   id        String           @id @default(uuid())
   classId   String
@@ -60,7 +60,6 @@ model TuitionPeriod {
   month     Int
   startDate DateTime?
   endDate   DateTime?
-  dueDate   DateTime?
   createdAt DateTime         @default(now())
   payments  TuitionPayment[]
 

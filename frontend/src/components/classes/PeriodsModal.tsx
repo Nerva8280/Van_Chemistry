@@ -22,13 +22,12 @@ interface FormState {
   month: string;
   startDate: string;
   endDate: string;
-  dueDate: string;
 }
 
 function emptyForm(): FormState {
   const now = new Date();
   const month = now.getMonth() + 1;
-  return { name: `Tháng ${month}`, year: String(now.getFullYear()), month: String(month), startDate: '', endDate: '', dueDate: '' };
+  return { name: `Tháng ${month}`, year: String(now.getFullYear()), month: String(month), startDate: '', endDate: '' };
 }
 
 export default function PeriodsModal({ cls, onClose, onChanged }: Props) {
@@ -47,7 +46,6 @@ export default function PeriodsModal({ cls, onClose, onChanged }: Props) {
   const [deleting, setDeleting] = useState(false);
 
   const [genYear, setGenYear] = useState(String(new Date().getFullYear()));
-  const [genDueDay, setGenDueDay] = useState('');
   const [generating, setGenerating] = useState(false);
 
   async function load(classId: string) {
@@ -91,7 +89,6 @@ export default function PeriodsModal({ cls, onClose, onChanged }: Props) {
       month: String(p.month),
       startDate: toDateInput(p.startDate),
       endDate: toDateInput(p.endDate),
-      dueDate: toDateInput(p.dueDate),
     });
     setFormError('');
     setFormOpen(true);
@@ -118,13 +115,11 @@ export default function PeriodsModal({ cls, onClose, onChanged }: Props) {
         month,
         startDate: form.startDate || null,
         endDate: form.endDate || null,
-        dueDate: form.dueDate || null,
       };
       if (editing) {
         await periodService.update(editing.id, payload);
         setSuccess(`Đã cập nhật kỳ "${payload.name}".`);
       } else {
-        if (!payload.dueDate) delete (payload as { dueDate?: string | null }).dueDate;
         await periodService.create(cls.id, payload);
         setSuccess(`Đã thêm kỳ "${payload.name}". Các học sinh đang học của lớp đã được thêm vào kỳ này.`);
       }
@@ -158,15 +153,12 @@ export default function PeriodsModal({ cls, onClose, onChanged }: Props) {
   async function handleGenerate() {
     if (!cls) return;
     const year = Number(genYear);
-    const dueDay = genDueDay ? Number(genDueDay) : undefined;
     if (!Number.isInteger(year) || year < 2000 || year > 3000) return setError('Năm không hợp lệ.');
-    if (dueDay !== undefined && (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 28))
-      return setError('Ngày hạn đóng phải từ 1 đến 28.');
     setGenerating(true);
     setError('');
     setSuccess('');
     try {
-      const res = await periodService.generate(cls.id, year, dueDay);
+      const res = await periodService.generate(cls.id, year);
       setSuccess(
         res.created > 0
           ? `Đã tạo ${res.created} kỳ mới cho năm ${year}.`
@@ -210,8 +202,7 @@ export default function PeriodsModal({ cls, onClose, onChanged }: Props) {
                     <th className="px-3 py-2">Tên</th>
                     <th className="px-3 py-2">Tháng/Năm</th>
                     <th className="px-3 py-2">Từ ngày</th>
-                    <th className="px-3 py-2">Đến ngày</th>
-                    <th className="px-3 py-2">Hạn đóng</th>
+                    <th className="px-3 py-2">Đến ngày (hạn đóng)</th>
                     <th className="px-3 py-2 text-right">Thao tác</th>
                   </tr>
                 </thead>
@@ -224,9 +215,6 @@ export default function PeriodsModal({ cls, onClose, onChanged }: Props) {
                       </td>
                       <td className="px-3 py-2 text-slate-600">{formatDate(p.startDate) || '—'}</td>
                       <td className="px-3 py-2 text-slate-600">{formatDate(p.endDate) || '—'}</td>
-                      <td className="px-3 py-2 text-slate-600">
-                        {p.dueDate ? formatDate(p.dueDate) : <span className="text-slate-400">Chưa đặt hạn</span>}
-                      </td>
                       <td className="px-3 py-2">
                         <div className="flex justify-end gap-2">
                           <button type="button" className="btn-secondary px-3 py-1" onClick={() => openEdit(p)}>
@@ -311,7 +299,7 @@ export default function PeriodsModal({ cls, onClose, onChanged }: Props) {
                 </div>
                 <div>
                   <label className="label" htmlFor="p-end">
-                    Đến ngày
+                    Đến ngày (hạn đóng)
                   </label>
                   <input
                     id="p-end"
@@ -323,19 +311,6 @@ export default function PeriodsModal({ cls, onClose, onChanged }: Props) {
                       set({ endDate: v });
                     }}
                   />
-                </div>
-                <div>
-                  <label className="label" htmlFor="p-due">
-                    Hạn đóng
-                  </label>
-                  <input
-                    id="p-due"
-                    className="input"
-                    type="date"
-                    value={form.dueDate}
-                    onChange={(e) => set({ dueDate: e.target.value })}
-                  />
-                  <p className="mt-1 text-xs text-slate-400">Không bắt buộc. Để trống nếu chưa có hạn.</p>
                 </div>
               </div>
               <div className="flex justify-end gap-2">
@@ -359,7 +334,7 @@ export default function PeriodsModal({ cls, onClose, onChanged }: Props) {
             <div>
               <h3 className="text-sm font-semibold text-slate-800">Tạo 12 kỳ theo tháng</h3>
               <p className="text-xs text-slate-500">
-                Tạo nhanh các kỳ "Tháng 1" đến "Tháng 12" còn thiếu của một năm (mỗi kỳ từ ngày 1 đến cuối tháng). Hạn đóng không bắt buộc, có thể đặt sau.
+                Tạo nhanh các kỳ "Tháng 1" đến "Tháng 12" còn thiếu của một năm (mỗi kỳ từ ngày 1 đến cuối tháng; hạn đóng là ngày cuối tháng).
               </p>
             </div>
             <div className="flex flex-wrap items-end gap-3">
@@ -376,19 +351,6 @@ export default function PeriodsModal({ cls, onClose, onChanged }: Props) {
                   value={genYear}
                   onChange={(e) => setGenYear(e.target.value)}
                 />
-              </div>
-              <div>
-                <label className="label" htmlFor="g-due">
-                  Hạn đóng: ngày
-                </label>
-                <select id="g-due" className="input w-36" value={genDueDay} onChange={(e) => setGenDueDay(e.target.value)}>
-                  <option value="">Chưa đặt hạn</option>
-                  {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
-                    <option key={d} value={d}>
-                      Ngày {d}
-                    </option>
-                  ))}
-                </select>
               </div>
               <button type="button" className="btn-secondary" onClick={handleGenerate} disabled={generating}>
                 {generating ? 'Đang tạo...' : 'Tạo 12 kỳ theo tháng'}

@@ -15,15 +15,15 @@ export async function computeOverdueList(userId: string, year?: number): Promise
     where: {
       isPaid: false,
       student: { class: { userId } },
-      period: { dueDate: { lt: startOfDay(now) }, ...(year ? { year } : {}) },
+      period: { endDate: { lt: startOfDay(now) }, ...(year ? { year } : {}) },
     },
     include: { student: { include: { class: true } }, period: true },
-    orderBy: [{ period: { dueDate: "asc" } }],
+    orderBy: [{ period: { endDate: "asc" } }],
   });
 
   const rows: OverdueExportRow[] = [];
   for (const p of payments) {
-    const dueDate = p.period.dueDate;
+    const dueDate = p.period.endDate;
     if (!dueDate) continue;
     const overdue = computeOverdue({ isPaid: false, dueDate, now });
     if (!overdue.isOverdue || !overdue.severity) continue;
