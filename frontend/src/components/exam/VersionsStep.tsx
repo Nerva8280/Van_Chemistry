@@ -125,6 +125,7 @@ export default function VersionsStep({ data, update, onPrint, onGoGenerate }: Ve
 
       <div className="overflow-x-auto">
         <div className="ex-sheet">
+          <div className="ex-code-badge">Mã đề {version.code}</div>
           <ExamPaper
             doc={data.doc}
             version={version}

@@ -198,6 +198,7 @@
 
 /* Trang A4 */
 .ex-sheet {
+  position: relative;
   background: #fff;
   width: 210mm;
   max-width: 100%;
@@ -205,6 +206,14 @@
   padding: 15mm;
   margin: 0 auto 16px;
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.15);
+}
+/* Mã đề ở góc phải trên (màn hình). Khi in, lề trang @top-right lặp lại trên mọi trang. */
+.ex-code-badge {
+  position: absolute;
+  top: 6mm;
+  right: 15mm;
+  font: 700 12pt 'Times New Roman', Times, serif;
+  color: #000;
 }
 .ex-answer-table {
   border-collapse: collapse;
@@ -247,5 +256,8 @@
   .ex-page-break {
     break-before: page;
     page-break-before: always;
+  }
+  .ex-code-badge {
+    display: none;
   }
 }
