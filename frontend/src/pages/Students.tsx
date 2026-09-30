@@ -1,4 +1,5 @@
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Modal from '../components/ui/Modal';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Spinner from '../components/ui/Spinner';
@@ -35,7 +36,11 @@ export default function Students() {
 
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 350);
-  const [classFilter, setClassFilter] = useState('');
+  // The class filter lives in the URL (?classId=) so the Dashboard can link to a filtered list.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const classFilter = searchParams.get('classId') ?? '';
+  const setClassFilter = (value: string) =>
+    setSearchParams(value ? { classId: value } : {}, { replace: true });
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Student | null>(null);
@@ -209,7 +214,10 @@ export default function Students() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-slate-900">Học sinh</h1>
+        <div className="flex items-baseline gap-3">
+          <h1 className="text-xl font-semibold text-slate-900">Học sinh</h1>
+          {!loading && <span className="text-sm text-slate-500">{students.length} học sinh</span>}
+        </div>
         <div className="flex flex-wrap gap-2">
           <input type="file" accept=".xlsx,.xls,.csv" ref={fileInputRef} className="hidden" onChange={handleFileSelected} />
           <button type="button" className="btn-secondary" onClick={triggerImport} disabled={importing}>

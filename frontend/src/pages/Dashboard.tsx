@@ -170,18 +170,15 @@ export default function Dashboard() {
         <EmptyState message="Không có dữ liệu để hiển thị." />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <StatCard label="Tổng số lớp" value={summary.totalClasses} />
-            <StatCard label="Tổng số học sinh" value={summary.totalStudents} />
-            <StatCard label="Tổng học phí dự kiến" value={formatCurrency(summary.totalExpected)} hint={scopeHint} />
-            <StatCard label="Tổng đã thu" value={formatCurrency(summary.totalCollected)} hint={scopeHint} />
-            <StatCard label="Tổng chưa thu" value={formatCurrency(summary.totalOutstanding)} hint={scopeHint} />
-            <StatCard label="Tỷ lệ hoàn thành" value={formatPercent(summary.completionRate)} hint="Đã thu / dự kiến" />
             <StatCard
-              label="Trung bình học phí mỗi học sinh"
-              value={formatCurrency(summary.averageFeePerStudent)}
+              label="Tổng số học sinh"
+              value={summary.totalStudents}
+              hint="Bấm để xem danh sách"
+              to={classId ? `/students?classId=${encodeURIComponent(classId)}` : '/students'}
             />
-            <StatCard label="Số học sinh quá hạn" value={summary.overdueStudentCount} />
+            <StatCard label="Số học sinh quá hạn" value={summary.overdueStudentCount} hint={scopeHint} />
           </div>
 
           <div>

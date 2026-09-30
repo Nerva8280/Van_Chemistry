@@ -100,12 +100,13 @@ Khi lọc `status`, chỉ trả về học sinh có ít nhất một khoản đ�
 ## 7. Dashboard
 
 `GET /api/dashboard?year=&month=&classId=`
-Khi có `month`, các tổng trong `summary` chỉ tính riêng tháng đó; không có thì tính cả năm.
+Khi có `month`, `overdueStudentCount` chỉ tính riêng tháng đó; không có thì tính cả năm.
 ```
 {
   year, years: number[], months: number[], selectedMonth: number|null,
-  summary: { totalClasses, totalStudents, totalExpected, totalCollected, totalOutstanding,
-             completionRate /* 0..1 */, averageFeePerStudent, overdueStudentCount },
+  summary: { totalClasses,
+             totalStudents,        // mọi học sinh của các lớp trong phạm vi lọc (khớp trang Học sinh/Học phí)
+             overdueStudentCount },
   monthStats: { paid, partial, overdue, unpaid },   // số học sinh theo trạng thái trong selectedMonth
   byMonth: { month, label, expected, collected }[],
   byClass: { className, expected, collected, rate /* 0..1 */ }[],

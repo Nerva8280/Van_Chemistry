@@ -98,13 +98,8 @@ export interface TuitionGridResponse {
 
 export interface DashboardSummary {
   totalClasses: number;
+  /** Mọi học sinh của các lớp trong phạm vi lọc (giống trang Học sinh và Học phí). */
   totalStudents: number;
-  totalExpected: number;
-  totalCollected: number;
-  totalOutstanding: number;
-  /** 0..1 */
-  completionRate: number;
-  averageFeePerStudent: number;
   overdueStudentCount: number;
 }
 

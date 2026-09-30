@@ -25,8 +25,10 @@ export async function getDashboard(req: Request, res: Response) {
   const years = yearRows.map((r) => r.year);
   const year = parseIntParam(req.query.year) ?? years[0] ?? new Date().getFullYear();
 
-  const [classes, payments] = await Promise.all([
+  // Every student of the classes in scope, so this matches the Students and Tuition screens.
+  const [classes, totalStudents, payments] = await Promise.all([
     prisma.class.findMany({ where: classWhere, select: { id: true, name: true } }),
+    prisma.student.count({ where: { class: classWhere } }),
     prisma.tuitionPayment.findMany({
       where: { student: { class: classWhere }, period: { year } },
       include: { period: true, student: { select: { id: true, fullName: true, classId: true } } },
@@ -68,19 +70,10 @@ export async function getDashboard(req: Request, res: Response) {
 
   const scoped = requestedMonth ? items.filter(({ p }) => p.period.month === requestedMonth) : items;
 
-  let totalExpected = 0;
-  let totalCollected = 0;
-  const studentIds = new Set<string>();
   const overdueStudentIds = new Set<string>();
   for (const it of scoped) {
-    totalExpected += it.expected;
-    totalCollected += it.paid;
-    studentIds.add(it.p.studentId);
-    if (!it.p.isPaid && isOverdue(it.p.period.dueDate, now)) {
-      overdueStudentIds.add(it.p.studentId);
-    }
+    if (!it.p.isPaid && isOverdue(it.p.period.dueDate, now)) overdueStudentIds.add(it.p.studentId);
   }
-  const totalOutstanding = scoped.reduce((s, it) => s + (it.p.isPaid ? 0 : Math.max(it.expected - it.paid, 0)), 0);
 
   const monthItems = selectedMonth ? items.filter(({ p }) => p.period.month === selectedMonth) : [];
   const monthStats: Record<PaymentStatus, number> = { paid: 0, partial: 0, overdue: 0, unpaid: 0 };
@@ -127,7 +120,6 @@ export async function getDashboard(req: Request, res: Response) {
     }))
     .sort((a, b) => a.className.localeCompare(b.className, "vi") || a.studentName.localeCompare(b.studentName, "vi"));
 
-  const totalStudents = studentIds.size;
   res.json({
     year,
     years: years.length ? years : [year],
@@ -136,11 +128,6 @@ export async function getDashboard(req: Request, res: Response) {
     summary: {
       totalClasses: classes.length,
       totalStudents,
-      totalExpected,
-      totalCollected,
-      totalOutstanding,
-      completionRate: totalExpected > 0 ? Math.min(totalCollected / totalExpected, 1) : 0,
-      averageFeePerStudent: totalStudents > 0 ? Math.round(totalExpected / totalStudents) : 0,
       overdueStudentCount: overdueStudentIds.size,
     },
     monthStats,
