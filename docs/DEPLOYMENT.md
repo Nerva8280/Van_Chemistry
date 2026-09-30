@@ -1,5 +1,27 @@
 # Hướng dẫn triển khai Production
 
+## Hai môi trường: test và prod
+
+| | Prod | Test |
+|---|---|---|
+| Nhánh git | `main` | `test` |
+| Frontend (Vercel) | project `van-chemistry` (https://van-chemistry.vercel.app), cấu hình `frontend/vercel.json` | project `van-chemistry-test` (https://van-chemistry-test.vercel.app), cấu hình `frontend/vercel.test.json` |
+| Backend (Render) | `tuition-management-backend` | `tuition-management-backend-test` |
+| Database (Neon) | database `neondb` | database `tuition_test` (cùng project Neon) |
+| Email nhắc | bật (`GMAIL_*`, `CRON_SECRET`) | tắt (không đặt `GMAIL_*`, `CRON_SECRET`) |
+
+Quy trình: sửa code trên nhánh `test` → deploy test → kiểm tra trên trang test → gộp `test` vào `main` → deploy prod.
+
+- Deploy frontend test (từ `frontend/`):
+  `VERCEL_ORG_ID=<org> VERCEL_PROJECT_ID=<id project test> vercel deploy --prod --local-config vercel.test.json --build-env VITE_API_URL=/api --build-env VITE_APP_ENV=test`
+  (`VITE_APP_ENV=test` bật dải cam "MÔI TRƯỜNG TEST").
+- Deploy frontend prod: `vercel deploy --prod --build-env VITE_API_URL=/api`.
+- Backend: Render không tự deploy khi push (repo nối bằng URL public), phải gọi `POST /v1/services/<id>/deploys`.
+- Làm mới dữ liệu test từ prod (xóa sạch test rồi chép lại; chỉ đọc prod):
+  `SOURCE_URL=<prod direct url> TARGET_URL=<test direct url> node backend/scripts/copy-prod-to-test.js`
+- Google OAuth client cần có cả hai domain trong "Authorized JavaScript origins" và "Authorized redirect URIs"
+  (`https://<domain>/api/auth/google/callback`).
+
 Kiến trúc gợi ý (chi phí thấp, phù hợp ứng dụng 1 người dùng):
 
 - **Frontend**: build tĩnh (`npm run build` → thư mục `dist/`) triển khai trên Vercel/Netlify/Cloudflare Pages.
