@@ -182,7 +182,7 @@ HTML chỉ gồm b, strong, i, em, u, sub, sup, br, span, div, p, img (src `data
   → `{ result: OcrResult, model: string }`
 
 Mỗi ảnh là một trang đề, theo thứ tự trang. Kiểm tra: 1–8 ảnh, mỗi ảnh ≤ 4 MB (sau giải mã base64), tổng ≤ 14 MB
-(lỗi `400`/`413`). Backend gọi Gemini (`GEMINI_MODEL`, mặc định `gemini-3.8-flash`) bằng REST `generateContent` với
+(lỗi `400`/`413`). Backend gọi Gemini (`GEMINI_MODEL`, mặc định `gemini-3.5-flash`) bằng REST `generateContent` với
 JSON schema, chờ tối đa 100 giây. Lỗi: `503` chưa cấu hình `GEMINI_API_KEY` (hoặc Gemini đang bận); `429` hết lượt/quá
 tải; `502` mã API không hợp lệ, bị bộ lọc an toàn chặn, không có kết quả hoặc JSON không đọc được; `504` quá thời gian.
 

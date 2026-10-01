@@ -50,9 +50,9 @@ export const env = {
 
   // "Tạo đề từ ảnh": khóa API Gemini (Google AI Studio). Để trống thì tính năng báo chưa cấu hình.
   GEMINI_API_KEY: optional("GEMINI_API_KEY", ""),
-  GEMINI_MODEL: optional("GEMINI_MODEL", "gemini-3.8-flash"),
+  GEMINI_MODEL: optional("GEMINI_MODEL", "gemini-3.5-flash"),
   // Tried in order when the main model is busy (503) or retired (404). Comma separated.
-  GEMINI_FALLBACK_MODELS: optional("GEMINI_FALLBACK_MODELS", "gemini-3.5-flash,gemini-3.7-flash"),
+  GEMINI_FALLBACK_MODELS: optional("GEMINI_FALLBACK_MODELS", "gemini-3.8-flash,gemini-3.7-flash"),
 
   APP_ENV: optional("APP_ENV", "production"),
   // Password login for the test environment only; ignored unless APP_ENV=test.
