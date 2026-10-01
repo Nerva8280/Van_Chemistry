@@ -259,6 +259,38 @@ export async function bulkEnroll(req: Request, res: Response) {
   });
 }
 
+/**
+ * Un-enrolls several students from their class's period of one month (cells become "—").
+ * Payments that already hold money are kept unless includePaid is true, so a mis-click
+ * can't silently erase a recorded payment.
+ */
+export async function bulkUnenroll(req: Request, res: Response) {
+  const userId = req.ownerId!;
+  const { studentIds, year, month, includePaid } = req.body ?? {};
+  if (!Array.isArray(studentIds) || studentIds.length === 0 || studentIds.some((id) => typeof id !== "string")) {
+    throw new AppError("Danh sách học sinh không hợp lệ.");
+  }
+  if (studentIds.length > 1000) throw new AppError("Chỉ được chọn tối đa 1000 học sinh mỗi lần.");
+  const y = Number(year);
+  const m = Number(month);
+  if (!Number.isInteger(y) || !Number.isInteger(m) || m < 1 || m > 12) throw new AppError("Tháng hoặc năm không hợp lệ.");
+  if (includePaid !== undefined && typeof includePaid !== "boolean") throw new AppError("Lựa chọn không hợp lệ.");
+
+  const payments = await prisma.tuitionPayment.findMany({
+    where: { studentId: { in: studentIds as string[] }, student: { class: { userId } }, period: { year: y, month: m } },
+    select: { id: true, isPaid: true, paidAmount: true },
+  });
+  const hasMoney = (p: (typeof payments)[number]) => p.isPaid || toNumber(p.paidAmount) > 0;
+  const toDelete = payments.filter((p) => includePaid === true || !hasMoney(p)).map((p) => p.id);
+  if (toDelete.length) await prisma.tuitionPayment.deleteMany({ where: { id: { in: toDelete } } });
+
+  res.json({
+    removed: toDelete.length,
+    keptPaid: payments.length - toDelete.length,
+    notEnrolled: studentIds.length - payments.length,
+  });
+}
+
 /** Un-enrolls a student from a period (the cell becomes "—"). */
 export async function deletePayment(req: Request, res: Response) {
   const userId = req.ownerId!;
@@ -267,4 +299,4 @@ export async function deletePayment(req: Request, res: Response) {
   res.status(204).end();
 }
 
-export default { getTuitionGrid, updatePayment, bulkMarkPaid, bulkEnroll, createPayment, deletePayment };
+export default { getTuitionGrid, updatePayment, bulkMarkPaid, bulkEnroll, bulkUnenroll, createPayment, deletePayment };

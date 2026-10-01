@@ -51,6 +51,17 @@ export const tuitionService = {
     return res.data;
   },
 
+  /** Bỏ nhiều học sinh khỏi kỳ tháng (year, month); mặc định giữ lại các khoản đã có tiền. */
+  async bulkUnenroll(
+    studentIds: string[],
+    year: number,
+    month: number,
+    includePaid: boolean
+  ): Promise<{ removed: number; keptPaid: number; notEnrolled: number }> {
+    const res = await api.post('/tuition/payments/bulk-unenroll', { studentIds, year, month, includePaid });
+    return res.data;
+  },
+
   async createPayment(studentId: string, periodId: string): Promise<Payment> {
     const res = await api.post<Payment>('/tuition/payments', { studentId, periodId });
     return res.data;

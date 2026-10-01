@@ -34,7 +34,8 @@ type ConfirmState =
   | { kind: 'completePartial'; payment: Payment; label: string }
   | { kind: 'add'; studentId: string; periodId: string; label: string }
   | { kind: 'bulk'; ids: string[]; month: number }
-  | { kind: 'enroll'; studentIds: string[]; col: TuitionColumn; alreadyIn: number; noPeriod: string[] };
+  | { kind: 'enroll'; studentIds: string[]; col: TuitionColumn; alreadyIn: number; noPeriod: string[] }
+  | { kind: 'unenroll'; studentIds: string[]; col: TuitionColumn; unpaidCount: number; paidNames: string[]; notIn: number };
 
 const colKey = (c: { year: number; month: number }) => `${c.year}-${c.month}`;
 
@@ -148,6 +149,7 @@ export default function Tuition() {
 
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
+  const [unenrollIncludePaid, setUnenrollIncludePaid] = useState(false);
   const [editTarget, setEditTarget] = useState<PaymentEditTarget | null>(null);
   const [createTarget, setCreateTarget] = useState<{ column: TuitionColumn; onlyClassId: string | null } | null>(null);
 
@@ -379,6 +381,32 @@ export default function Tuition() {
     setConfirm({ kind: 'enroll', studentIds: eligible.map((s) => s.id), col, alreadyIn, noPeriod });
   }
 
+  function handleUnenrollClick() {
+    setInfo('');
+    const m = Number(bulkMonth);
+    const col = columns.find((c) => c.month === m);
+    if (!col) return;
+    const chosen = visibleStudents.filter((s) => selected.has(s.id));
+    const enrolled = chosen.filter((s) => paymentOf(s, col));
+    if (enrolled.length === 0) {
+      setInfo(`Các học sinh đã chọn đều không có trong kỳ Tháng ${m}.`);
+      return;
+    }
+    const hasMoney = (s: TuitionGridStudent) => {
+      const p = paymentOf(s, col)!;
+      return p.isPaid || p.paidAmount > 0;
+    };
+    setUnenrollIncludePaid(false);
+    setConfirm({
+      kind: 'unenroll',
+      studentIds: enrolled.map((s) => s.id),
+      col,
+      unpaidCount: enrolled.filter((s) => !hasMoney(s)).length,
+      paidNames: enrolled.filter(hasMoney).map((s) => s.fullName),
+      notIn: chosen.length - enrolled.length,
+    });
+  }
+
   async function runConfirm() {
     if (!confirm) return;
     setConfirmLoading(true);
@@ -403,6 +431,17 @@ export default function Tuition() {
         setSelected(new Set());
         const extra = res.noPeriod.length > 0 ? ` ${res.noPeriod.length} học sinh thuộc lớp chưa có kỳ tháng này.` : '';
         setInfo(`Đã thêm ${res.created} học sinh vào kỳ Tháng ${confirm.col.month}.${extra}`);
+        await load();
+      } else if (confirm.kind === 'unenroll') {
+        const res = await tuitionService.bulkUnenroll(
+          confirm.studentIds,
+          confirm.col.year,
+          confirm.col.month,
+          unenrollIncludePaid
+        );
+        setSelected(new Set());
+        const kept = res.keptPaid > 0 ? ` Giữ lại ${res.keptPaid} học sinh đã đóng tiền.` : '';
+        setInfo(`Đã bỏ ${res.removed} học sinh khỏi kỳ Tháng ${confirm.col.month}.${kept}`);
         await load();
       }
       setConfirm(null);
@@ -589,6 +628,27 @@ export default function Tuition() {
       notes.length ? ' ' + notes.join(' ') : ''
     }`;
     confirmLabel = 'Thêm vào kỳ';
+  } else if (confirm?.kind === 'unenroll') {
+    confirmTitle = 'Bỏ khỏi kỳ';
+    const total = unenrollIncludePaid ? confirm.unpaidCount + confirm.paidNames.length : confirm.unpaidCount;
+    const notes: string[] = [];
+    if (confirm.paidNames.length > 0) {
+      const names = `${confirm.paidNames.slice(0, 5).join(', ')}${confirm.paidNames.length > 5 ? ', ...' : ''}`;
+      notes.push(
+        unenrollIncludePaid
+          ? `Trong đó có ${confirm.paidNames.length} học sinh đã đóng tiền (${names}): số tiền và ngày đóng đã ghi sẽ bị xóa.`
+          : `${confirm.paidNames.length} học sinh đã đóng tiền sẽ được giữ lại (${names}).`
+      );
+    }
+    if (confirm.notIn > 0) notes.push(`${confirm.notIn} học sinh không có trong kỳ này nên được bỏ qua.`);
+    confirmMessage =
+      total > 0
+        ? `Bỏ ${total} học sinh khỏi kỳ Tháng ${confirm.col.month}/${confirm.col.year}? Ô của các em sẽ thành "—".${
+            notes.length ? ' ' + notes.join(' ') : ''
+          }`
+        : `Không có học sinh nào để bỏ: ${notes.join(' ')}`;
+    confirmLabel = 'Bỏ khỏi kỳ';
+    confirmDanger = true;
   }
 
 
@@ -730,7 +790,15 @@ export default function Tuition() {
           <button type="button" className="btn-secondary bg-white max-sm:px-2" onClick={handleEnrollClick} disabled={!bulkMonth}>
             Thêm vào kỳ
           </button>
-          <button type="button" className="btn-secondary max-sm:px-2" onClick={() => setSelected(new Set())}>
+          <button
+            type="button"
+            className="btn-secondary bg-white text-danger-600 max-sm:px-2"
+            onClick={handleUnenrollClick}
+            disabled={!bulkMonth}
+          >
+            Bỏ khỏi kỳ
+          </button>
+          <button type="button" className="btn-secondary max-sm:col-span-2 max-sm:px-2" onClick={() => setSelected(new Set())}>
             Bỏ chọn
           </button>
         </div>
@@ -911,7 +979,19 @@ export default function Tuition() {
         loading={confirmLoading}
         onConfirm={runConfirm}
         onCancel={() => setConfirm(null)}
-      />
+      >
+        {confirm?.kind === 'unenroll' && confirm.paidNames.length > 0 && (
+          <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg bg-danger-50 p-3 text-sm text-danger-600">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 accent-danger-500"
+              checked={unenrollIncludePaid}
+              onChange={(e) => setUnenrollIncludePaid(e.target.checked)}
+            />
+            <span>Bỏ cả {confirm.paidNames.length} học sinh đã đóng tiền (xóa số tiền và ngày đóng đã ghi).</span>
+          </label>
+        )}
+      </ConfirmDialog>
 
       <CreatePeriodsModal
         column={createTarget?.column ?? null}

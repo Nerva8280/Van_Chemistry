@@ -22,6 +22,7 @@ Chi tiết dữ liệu trả về và luật nghiệp vụ: [CONTRACT.md](CONTRA
 | Học phí | PATCH | `/tuition/payments/:id` | Tick / bỏ tick / ghi số tiền / ghi chú |
 | Học phí | POST | `/tuition/payments/bulk-paid` | Đánh dấu nhiều khoản đã đóng |
 | Học phí | POST | `/tuition/payments/bulk-enroll` | Thêm nhiều học sinh vào kỳ của một tháng |
+| Học phí | POST | `/tuition/payments/bulk-unenroll` | Bỏ nhiều học sinh khỏi kỳ của một tháng (`includePaid` để bỏ cả khoản đã đóng tiền) |
 | Học phí | POST | `/tuition/payments` | Thêm học sinh vào một kỳ |
 | Học phí | DELETE | `/tuition/payments/:id` | Bỏ học sinh khỏi một kỳ |
 | Dashboard | GET | `/dashboard` | Số liệu tổng hợp, biểu đồ, danh sách chưa đóng |
