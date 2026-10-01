@@ -1,5 +1,12 @@
 import api from './api';
 import { ExamData } from '../exam/types';
+import type { OcrResult } from '../exam/fromImages';
+
+export interface OcrImagePayload {
+  mimeType: 'image/jpeg' | 'image/png' | 'image/webp';
+  /** base64, không có tiền tố data: */
+  data: string;
+}
 
 export interface ExamSummary {
   id: string;
@@ -30,6 +37,11 @@ export const examService = {
   },
   async update(id: string, payload: { title?: string; data?: ExamData }): Promise<ExamFull> {
     const { data } = await api.put(`/exams/${id}`, payload);
+    return data;
+  },
+  /** Đọc ảnh chụp đề bằng AI (Gemini). Có thể mất 30–60 giây nên chờ tối đa 120 giây. */
+  async ocr(images: OcrImagePayload[]): Promise<{ result: OcrResult; model: string }> {
+    const { data } = await api.post('/exams/ocr', { images }, { timeout: 120_000 });
     return data;
   },
   async remove(id: string): Promise<void> {

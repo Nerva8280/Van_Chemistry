@@ -310,6 +310,17 @@ function arrowHtml(chr: string): string {
   return `<span class="ex-arrow">${escapeHtml(chr)}</span>`;
 }
 
+/**
+ * Mũi tên phản ứng có chữ trên/dưới, đúng cấu trúc HTML mà công thức Word (m:groupChr,
+ * m:limUpp/m:limLow) tạo ra. Dùng chung cho "Tạo đề từ ảnh". `above`/`below` là HTML, rỗng = không có.
+ */
+export function arrowWithTextHtml(chr: string, above: string, below: string): string {
+  const a = above.trim() ? above.trim() : null;
+  const b = below.trim() ? below.trim() : null;
+  const arrow = arrowHtml(chr);
+  return `<span class="ex-math">${a === null && b === null ? arrow : stack(a, arrow, b)}</span>`;
+}
+
 function omml(el: Element): string {
   const k = nsKey(el.namespaceURI);
   if (k === 'w') {

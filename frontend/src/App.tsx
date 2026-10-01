@@ -16,6 +16,7 @@ import NotFound from './pages/NotFound';
 // Trang "Tạo đề" tải riêng (kèm jszip, DOMPurify) để các trang học phí không phải tải thêm.
 const Exams = lazy(() => import('./pages/Exams'));
 const ExamEditor = lazy(() => import('./pages/ExamEditor'));
+const ExamFromImages = lazy(() => import('./pages/ExamFromImages'));
 const ExamPrint = lazy(() => import('./pages/ExamPrint'));
 
 function Lazy({ children }: { children: ReactNode }) {
@@ -58,6 +59,7 @@ export default function App() {
               <Route path="/import" element={<Import />} />
               <Route path="/overdue" element={<Overdue />} />
               <Route path="/exams" element={<Lazy><Exams /></Lazy>} />
+              <Route path="/exams/from-images" element={<Lazy><ExamFromImages /></Lazy>} />
               <Route path="/exams/:id" element={<Lazy><ExamEditor /></Lazy>} />
               <Route path="*" element={<NotFound />} />
             </Route>

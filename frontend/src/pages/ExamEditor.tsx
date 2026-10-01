@@ -211,7 +211,7 @@ export default function ExamEditor() {
         <div className="rounded-lg bg-warning-50 px-4 py-3 text-sm text-warning-700 ring-1 ring-inset ring-warning-100">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <button type="button" className="font-medium hover:underline" onClick={() => setShowWarnings((s) => !s)}>
-              Có {warnings.length} lưu ý khi đọc file Word ({showWarnings ? 'bấm để thu gọn' : 'bấm để xem'})
+              Có {warnings.length} lưu ý khi đọc đề ({showWarnings ? 'bấm để thu gọn' : 'bấm để xem'})
             </button>
             <button
               type="button"

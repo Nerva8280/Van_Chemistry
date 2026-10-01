@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import { Prisma } from "@prisma/client";
 import prisma from "../config/db";
 import { AppError } from "../middleware/errorHandler";
+import env from "../config/env";
+import { MSG_NOT_CONFIGURED, ocrWithGemini, validateImages } from "../services/exam-ocr.service";
 
 const MAX_TITLE = 200;
 const MAX_BYTES = 12 * 1024 * 1024;
@@ -136,4 +138,12 @@ export async function deleteExam(req: Request, res: Response) {
   res.status(204).end();
 }
 
-export default { listExams, getExam, createExam, updateExam, deleteExam };
+/** Đọc ảnh chụp đề thi bằng Gemini, trả cấu trúc đề (frontend dựng ExamDoc và làm sạch HTML). */
+export async function ocrExam(req: Request, res: Response) {
+  if (!env.GEMINI_API_KEY) throw new AppError(MSG_NOT_CONFIGURED, 503);
+  const images = validateImages(req.body);
+  const out = await ocrWithGemini(images, { apiKey: env.GEMINI_API_KEY, model: env.GEMINI_MODEL });
+  res.json(out);
+}
+
+export default { listExams, getExam, createExam, updateExam, deleteExam, ocrExam };

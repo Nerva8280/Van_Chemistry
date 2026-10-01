@@ -108,7 +108,7 @@ export default function Exams() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-slate-900">Tạo đề</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <input ref={fileInput} type="file" accept=".docx,.doc" className="hidden" onChange={handleFile} />
           <button type="button" className="btn-primary" disabled={uploading} onClick={() => fileInput.current?.click()}>
             {uploading ? (
@@ -119,12 +119,21 @@ export default function Exams() {
               'Tải file Word lên'
             )}
           </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={uploading}
+            onClick={() => navigate('/exams/from-images')}
+          >
+            Tạo đề từ ảnh
+          </button>
         </div>
       </div>
 
       <p className="text-sm text-slate-500">
         Tải lên file Word (.docx) của đề thi. Bạn sẽ kiểm tra, sửa nội dung, chọn đáp án đúng, rồi tạo các mã đề đã tráo
-        câu và in ra (hoặc lưu PDF) kèm bảng đáp án. Hiện chỉ hỗ trợ file Word (.docx).
+        câu và in ra (hoặc lưu PDF) kèm bảng đáp án. Chưa có file Word? Bấm "Tạo đề từ ảnh" để chụp hoặc chọn ảnh các trang
+        đề đã in, AI sẽ đọc thành đề để bạn kiểm tra và sửa.
       </p>
 
       {error && <Alert message={error} />}

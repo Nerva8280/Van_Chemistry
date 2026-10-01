@@ -30,6 +30,9 @@ export function sanitizeHtml(html: string): string {
     ALLOWED_TAGS,
     ALLOWED_ATTR,
     ALLOWED_URI_REGEXP: /^data:image\/(png|jpeg|gif);base64,/i,
+    // Có ALLOWED_URI_REGEXP thì DOMPurify bỏ mọi thuộc tính không thuộc nhóm "an toàn với URI" có
+    // giá trị không khớp regex, kể cả width="300". Hook ở trên đã chỉ cho phép số nguyên.
+    ADD_URI_SAFE_ATTR: ['width', 'height'],
   }) as string;
 }
 

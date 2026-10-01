@@ -176,6 +176,32 @@ Câu hỏi chỉ được tráo trong phần của nó. Đáp án của một m�
 phần đầu đề nằm trong `<span class="ex-code">` và được thay bằng `Version.code` khi in.
 HTML chỉ gồm b, strong, i, em, u, sub, sup, br, span, div, p, img (src `data:`) với class `ex-…`; luôn được làm sạch bằng DOMPurify.
 
+### Tạo đề từ ảnh (AI Gemini)
+
+- `POST /api/exams/ocr` body `{ images: { mimeType: "image/jpeg"|"image/png"|"image/webp", data: string /* base64, không có tiền tố data: */ }[] }`
+  → `{ result: OcrResult, model: string }`
+
+Mỗi ảnh là một trang đề, theo thứ tự trang. Kiểm tra: 1–8 ảnh, mỗi ảnh ≤ 4 MB (sau giải mã base64), tổng ≤ 14 MB
+(lỗi `400`/`413`). Backend gọi Gemini (`GEMINI_MODEL`, mặc định `gemini-2.5-flash`) bằng REST `generateContent` với
+JSON schema, chờ tối đa 100 giây. Lỗi: `503` chưa cấu hình `GEMINI_API_KEY` (hoặc Gemini đang bận); `429` hết lượt/quá
+tải; `502` mã API không hợp lệ, bị bộ lọc an toàn chặn, không có kết quả hoặc JSON không đọc được; `504` quá thời gian.
+
+```
+OcrResult = {
+  headerLines: string[],               // các dòng phần đầu đề (HTML đơn giản)
+  originalCode: string|null,           // số MÃ ĐỀ nếu có
+  sections: { kind: "mcq"|"truefalse"|"short", title: string|null,
+              questions: { stem: string, options: string[] }[] }[],   // không có "Câu N.", "A.", "a)"
+  figures: { id: string, image: number /* 1-based */, box_2d: [ymin, xmin, ymax, xmax] /* 0–1000 */ }[],
+  warnings: string[]                   // ghi chú tiếng Việt về chỗ khó đọc
+}
+```
+Trong chuỗi: `[[ARROW:trên|dưới]]` / `[[ARROW2:trên|dưới]]` (⇌) là mũi tên có điều kiện, `[[FIG:id]]` là vị trí hình.
+Backend chỉ ép kiểu (kẹp `box_2d` vào 0–1000, bỏ hình trỏ tới ảnh không tồn tại), **không** làm sạch HTML. Frontend
+(`frontend/src/exam/fromImages.ts`) dựng `ExamDoc` cùng cấu trúc với `parseDocx` (mũi tên dùng chung HTML của công thức
+Word, hình cắt từ ảnh thành data URL JPEG), làm sạch bằng DOMPurify, rồi lưu bằng `POST /api/exams` với
+`sourceName` = "N ảnh" và cảnh báo trong `parseWarnings`. Ảnh gửi đi không được lưu ở backend.
+
 ## 11. Báo cáo & khác
 
 - `GET /api/reports/students/export`, `GET /api/reports/tuition-summary/export?year=`, `GET /api/reports/overdue/export?year=` → .xlsx

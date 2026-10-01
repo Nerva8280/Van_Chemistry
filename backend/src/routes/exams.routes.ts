@@ -1,6 +1,6 @@
 import express, { Router } from "express";
 import asyncHandler from "../utils/asyncHandler";
-import { listExams, getExam, createExam, updateExam, deleteExam } from "../controllers/exams.controller";
+import { listExams, getExam, createExam, updateExam, deleteExam, ocrExam } from "../controllers/exams.controller";
 
 const router = Router();
 
@@ -8,6 +8,8 @@ const router = Router();
 // chung cho /api/exams để bộ đọc này có hiệu lực. Controller từ chối dữ liệu trên 12 MB.
 router.use(express.json({ limit: "15mb" }));
 
+// Đọc ảnh chụp đề bằng AI (ảnh base64, tối đa 14 MB nên cần bộ đọc 15 MB ở trên). Đặt trước "/:id".
+router.post("/ocr", asyncHandler(ocrExam));
 router.get("/", asyncHandler(listExams));
 router.get("/:id", asyncHandler(getExam));
 router.post("/", asyncHandler(createExam));

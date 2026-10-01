@@ -28,6 +28,9 @@ Chi tiết dữ liệu trả về và luật nghiệp vụ: [CONTRACT.md](CONTRA
 | Quá hạn | GET | `/overdue` | Danh sách khoản quá hạn |
 | Nhập dữ liệu | GET | `/import/tuition/template` | Tải file mẫu |
 | Nhập dữ liệu | POST | `/import/tuition` | Xem trước hoặc nhập file học phí (`commit=true`) |
+| Tạo đề | GET/POST | `/exams` | Danh sách đề / lưu đề mới (đề đọc từ Word hoặc ảnh ngay trên trình duyệt) |
+| Tạo đề | GET/PUT/DELETE | `/exams/:id` | Mở / lưu / xóa đề |
+| Tạo đề | POST | `/exams/ocr` | Đọc 1–8 ảnh chụp các trang đề bằng AI Gemini, trả cấu trúc đề (cần `GEMINI_API_KEY`; mô hình `GEMINI_MODEL`, mặc định `gemini-2.5-flash`) |
 | Báo cáo | GET | `/reports/students/export`, `/reports/tuition-summary/export`, `/reports/overdue/export` | Xuất Excel |
 | Nhắc nhở | POST | `/reminders/run-now` | Chạy gửi email nhắc ngay |
 | Hệ thống | POST | `/cron/reminders` | Dịch vụ hẹn giờ gọi hằng ngày (header `x-cron-secret`) |
