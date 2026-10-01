@@ -361,3 +361,36 @@ export async function ocrWithGemini(images: OcrImage[], opts: GeminiOptions): Pr
 
   return { result: normalizeResult(parsed, images.length), model: opts.model };
 }
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * The free tier often answers 503 "high demand" for a few seconds, and Google retires models
+ * for new keys (404). Retry a busy model briefly, then fall back to the next one, all within
+ * one overall deadline so the browser's request doesn't give up first.
+ */
+export async function ocrWithFallback(
+  images: OcrImage[],
+  opts: Omit<GeminiOptions, "model" | "timeoutMs"> & { models: string[]; deadlineMs?: number }
+): Promise<{ result: OcrResult; model: string }> {
+  const deadline = Date.now() + (opts.deadlineMs ?? 110_000);
+  const models = [...new Set(opts.models.filter(Boolean))];
+  let lastError: unknown = new AppError(MSG_UNAVAILABLE, 503);
+  for (const model of models) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const remaining = deadline - Date.now();
+      if (remaining < 15_000) throw lastError;
+      try {
+        return await ocrWithGemini(images, { ...opts, model, timeoutMs: Math.min(GEMINI_TIMEOUT_MS, remaining) });
+      } catch (err) {
+        lastError = err;
+        const busy = err instanceof AppError && err.message === MSG_UNAVAILABLE;
+        const retired = err instanceof AppError && /\(mã 404\)/.test(err.message);
+        if (retired) break;
+        if (!busy) throw err;
+        await sleep(attempt === 0 ? 3000 : 6000);
+      }
+    }
+  }
+  throw lastError;
+}
