@@ -6,6 +6,7 @@ import EmptyState from '../components/ui/EmptyState';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import PaymentEditModal, { PaymentEditTarget, paidDateText } from '../components/tuition/PaymentEditModal';
 import CreatePeriodsModal, { CreatePeriodCandidate } from '../components/tuition/CreatePeriodsModal';
+import EditPeriodModal, { EditPeriodTarget } from '../components/tuition/EditPeriodModal';
 import { tuitionService } from '../services/tuitionService';
 import { classService } from '../services/classService';
 import { getErrorMessage } from '../services/api';
@@ -95,10 +96,16 @@ function previousPeriodEnd(cls: TuitionGridClass, col: TuitionColumn): string | 
 }
 
 /** Hạn đóng của một kỳ = ngày cuối kỳ. */
-function DueText({ period }: { period: Period }) {
+function DueText({ period, onEdit }: { period: Period; onEdit: () => void }) {
   const range = formatShortRange(period.startDate, period.endDate);
   return (
-    <span className="block" title={periodTitle(period, period.month)}>
+    <button
+      type="button"
+      onClick={onEdit}
+      className="-mx-1 block rounded px-1 text-left hover:bg-primary-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 max-sm:py-0.5"
+      title={`${periodTitle(period, period.month)}
+Bấm để sửa kỳ`}
+    >
       {/* Dưới sm: tên kỳ một dòng, khoảng ngày xuống dòng dưới để cột tháng hẹp lại. */}
       <span className="block text-[11px] font-semibold text-slate-700 max-sm:leading-tight sm:whitespace-nowrap">
         {period.name}
@@ -111,7 +118,7 @@ function DueText({ period }: { period: Period }) {
       ) : (
         <span className="block whitespace-nowrap text-[11px] text-slate-400">Chưa có hạn</span>
       )}
-    </span>
+    </button>
   );
 }
 
@@ -150,6 +157,7 @@ export default function Tuition() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const [editPeriod, setEditPeriod] = useState<EditPeriodTarget | null>(null);
   const [pending, setPending] = useState<Set<string>>(new Set());
 
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
@@ -982,7 +990,9 @@ export default function Tuition() {
                       >
                         <span className="block whitespace-nowrap text-slate-700">Tháng {col.month}</span>
                         {sub && <span className="block text-[11px] font-normal text-slate-400 max-sm:leading-tight sm:whitespace-nowrap">{sub}</span>}
-                        {singlePeriod && <DueText period={singlePeriod} />}
+                        {singlePeriod && (
+                          <DueText period={singlePeriod} onEdit={() => setEditPeriod({ period: singlePeriod, className: shownClasses[0].name })} />
+                        )}
                         {missingClasses(col).length > 0 && (
                           <button
                             type="button"
@@ -1024,7 +1034,12 @@ export default function Tuition() {
                           </td>
                           {columns.map((col) => (
                             <td key={colKey(col)} className="border-b border-l border-slate-200 bg-slate-100 px-1.5 py-1 sm:px-2">
-                              {periodOf(g.cls, col) && <DueText period={periodOf(g.cls, col)!} />}
+                              {periodOf(g.cls, col) && (
+                                <DueText
+                                  period={periodOf(g.cls, col)!}
+                                  onEdit={() => setEditPeriod({ period: periodOf(g.cls, col)!, className: g.cls.name })}
+                                />
+                              )}
                               {!periodOf(g.cls, col) && (
                                 <button
                                   type="button"
@@ -1115,6 +1130,16 @@ export default function Tuition() {
             load();
           }
           if (done) setCreateTarget(null);
+        }}
+      />
+
+      <EditPeriodModal
+        target={editPeriod}
+        onClose={() => setEditPeriod(null)}
+        onSaved={(p) => {
+          setEditPeriod(null);
+          setInfo(`Đã cập nhật ${p.name}.`);
+          load();
         }}
       />
 
