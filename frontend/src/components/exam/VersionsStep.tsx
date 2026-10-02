@@ -1,5 +1,6 @@
 import '../../exam/exam.css';
 import { useState } from 'react';
+import { format } from 'date-fns';
 import { ExamData } from '../../exam/types';
 import { ResolvedQuestion, reshuffleVersion, setVersionOverride } from '../../exam/versions';
 import { sanitizeHtml } from '../../exam/sanitize';
@@ -7,6 +8,7 @@ import ExamPaper from './ExamPaper';
 import FormatToolbar from './FormatToolbar';
 import Alert from '../ui/Alert';
 import EmptyState from '../ui/EmptyState';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 interface VersionsStepProps {
   data: ExamData;
@@ -19,6 +21,7 @@ export const PDF_HINT = "Trong hộp thoại in, chọn máy in là 'Lưu thành
 
 export default function VersionsStep({ data, update, onPrint, onGoGenerate }: VersionsStepProps) {
   const [selected, setSelected] = useState(0);
+  const [confirmReshuffle, setConfirmReshuffle] = useState(false);
   const versions = data.versions;
 
   if (!versions.length) {
@@ -78,6 +81,7 @@ export default function VersionsStep({ data, update, onPrint, onGoGenerate }: Ve
   }
 
   function reshuffle() {
+    setConfirmReshuffle(false);
     update((d) => ({
       ...d,
       versions: d.versions.map((v, i) => (i === idx ? reshuffleVersion(d.doc, d.settings, v) : v)),
@@ -86,6 +90,9 @@ export default function VersionsStep({ data, update, onPrint, onGoGenerate }: Ve
 
   return (
     <div className="flex flex-col gap-4">
+      <p className="text-sm text-slate-500">
+        Bộ {versions.length} mã đề đã lưu{data.generatedAt && `, tạo lúc ${format(new Date(data.generatedAt), 'HH:mm dd/MM/yyyy')}`}.
+      </p>
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-medium text-slate-600">Chọn mã đề:</span>
         {versions.map((v, i) => (
@@ -103,7 +110,7 @@ export default function VersionsStep({ data, update, onPrint, onGoGenerate }: Ve
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn-secondary" onClick={reshuffle}>
+        <button type="button" className="btn-secondary" onClick={() => setConfirmReshuffle(true)}>
           Tráo lại mã đề này
         </button>
         <button type="button" className="btn-primary" onClick={() => onPrint([version.code])}>
@@ -138,6 +145,15 @@ export default function VersionsStep({ data, update, onPrint, onGoGenerate }: Ve
           />
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmReshuffle}
+        title={`Tráo lại mã đề ${version.code}`}
+        message={`Thứ tự câu hỏi và đáp án của mã đề ${version.code} sẽ bị thay bằng cách tráo mới. Nếu đã in hoặc phát mã đề này thì sẽ không đối chiếu lại được. Không thể hoàn tác. Tiếp tục?`}
+        confirmLabel="Tráo lại"
+        onConfirm={reshuffle}
+        onCancel={() => setConfirmReshuffle(false)}
+      />
     </div>
   );
 }

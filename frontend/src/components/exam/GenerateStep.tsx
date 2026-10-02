@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { format } from 'date-fns';
 import { ExamData, ExamSettings } from '../../exam/types';
 import { countMissingAnswers, defaultCodes, generateVersions } from '../../exam/versions';
 import Alert from '../ui/Alert';
@@ -8,12 +9,13 @@ interface GenerateStepProps {
   data: ExamData;
   update: (fn: (d: ExamData) => ExamData) => void;
   onGenerated: () => void;
+  onViewVersions: () => void;
 }
 
 const MIN = 2;
 const MAX = 5;
 
-export default function GenerateStep({ data, update, onGenerated }: GenerateStepProps) {
+export default function GenerateStep({ data, update, onGenerated, onViewVersions }: GenerateStepProps) {
   const existing = data.versions;
   const initialCount = existing.length >= MIN && existing.length <= MAX ? existing.length : 4;
   const [count, setCount] = useState(initialCount);
@@ -44,7 +46,7 @@ export default function GenerateStep({ data, update, onGenerated }: GenerateStep
 
   function generate() {
     setConfirmOpen(false);
-    update((d) => ({ ...d, versions: generateVersions(d.doc, d.settings, trimmed) }));
+    update((d) => ({ ...d, versions: generateVersions(d.doc, d.settings, trimmed), generatedAt: new Date().toISOString() }));
     onGenerated();
   }
 
@@ -69,6 +71,22 @@ export default function GenerateStep({ data, update, onGenerated }: GenerateStep
         />
       )}
       {message && <Alert variant="success" message={message} autoHide />}
+
+      {existing.length > 0 && (
+        <div className="flex flex-col gap-3 rounded-lg bg-success-50 px-4 py-3 text-sm text-success-700 ring-1 ring-inset ring-success-100">
+          <p>
+            Đề này đã có <span className="font-semibold">{existing.length} mã đề đã lưu</span>:{' '}
+            <span className="font-semibold">{existing.map((v) => v.code).join(', ')}</span>
+            {data.generatedAt && <> (tạo lúc {format(new Date(data.generatedAt), 'HH:mm dd/MM/yyyy')})</>}. Mở lại đề luôn
+            giữ nguyên các mã đề này, không cần tạo lại.
+          </p>
+          <div>
+            <button type="button" className="btn-primary" onClick={onViewVersions}>
+              Xem các mã đề đã lưu
+            </button>
+          </div>
+        </div>
+      )}
 
       <div>
         <label className="label" htmlFor="version-count">
@@ -124,11 +142,11 @@ export default function GenerateStep({ data, update, onGenerated }: GenerateStep
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          className="btn-primary"
+          className={existing.length ? 'btn-danger' : 'btn-primary'}
           disabled={!!error}
           onClick={() => (existing.length ? setConfirmOpen(true) : generate())}
         >
-          {existing.length ? 'Tạo lại mã đề' : 'Tạo mã đề'}
+          {existing.length ? 'Tráo lại toàn bộ (thay mã đề cũ)' : 'Tạo mã đề'}
         </button>
         {existing.length === count && existing.length > 0 && (
           <button type="button" className="btn-secondary" disabled={!!error} onClick={renameOnly}>
@@ -140,7 +158,7 @@ export default function GenerateStep({ data, update, onGenerated }: GenerateStep
       <ConfirmDialog
         open={confirmOpen}
         title="Tạo lại mã đề"
-        message="Các mã đề đã tạo và những chỗ đã sửa riêng cho từng mã đề sẽ bị thay thế. Không thể hoàn tác. Tiếp tục?"
+        message={`Các mã đề ${existing.map((v) => v.code).join(', ')} đã tạo và những chỗ đã sửa riêng sẽ bị thay bằng bộ mới. Nếu đã in hoặc phát đề cũ thì sẽ không đối chiếu lại được. Không thể hoàn tác. Tiếp tục?`}
         confirmLabel="Tạo lại"
         onConfirm={generate}
         onCancel={() => setConfirmOpen(false)}

@@ -61,6 +61,8 @@ export interface ExamData {
   doc: ExamDoc;
   settings: ExamSettings;
   versions: Version[];
+  /** Thời điểm tạo bộ mã đề hiện tại (ISO), để đối chiếu với bản đã in. */
+  generatedAt?: string;
   /** Cảnh báo khi đọc file Word (không bắt buộc). */
   parseWarnings?: string[];
 }

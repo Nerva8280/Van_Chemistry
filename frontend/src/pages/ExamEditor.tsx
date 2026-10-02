@@ -63,6 +63,8 @@ export default function ExamEditor() {
         setTitle(ex.title);
         setSavedAt(new Date(ex.updatedAt));
         setSaveState('saved');
+        // Đề đã có mã đề thì mở thẳng các mã đề đã lưu, không bắt đầu lại từ bước 1.
+        if (d.versions.length) setStep(3);
       })
       .catch((err) => !cancelled && setLoadError(getErrorMessage(err, 'Không mở được đề.')))
       .finally(() => !cancelled && setLoading(false));
@@ -251,7 +253,7 @@ export default function ExamEditor() {
       </div>
 
       {step === 1 && <ContentStep data={data} update={update} />}
-      {step === 2 && <GenerateStep data={data} update={update} onGenerated={() => setStep(3)} />}
+      {step === 2 && <GenerateStep data={data} update={update} onGenerated={() => setStep(3)} onViewVersions={() => setStep(3)} />}
       {step === 3 && (
         <VersionsStep
           data={data}
