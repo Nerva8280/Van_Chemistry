@@ -183,8 +183,8 @@ export default function PeriodsModal({ cls, onClose, onChanged }: Props) {
             Mỗi kỳ là một cột trong bảng học phí (ví dụ "Tháng 7" từ 15/06 đến 14/07). Mỗi lớp chỉ có một kỳ cho mỗi
             tháng.
           </p>
-          {error && <Alert message={error} />}
-          {success && <Alert variant="success" message={success} />}
+          {error && <Alert message={error} autoHide />}
+          {success && <Alert variant="success" message={success} autoHide />}
 
           <div className="overflow-x-auto rounded-lg border border-slate-100">
             {loading ? (
@@ -235,7 +235,7 @@ export default function PeriodsModal({ cls, onClose, onChanged }: Props) {
           {formOpen ? (
             <form onSubmit={handleSubmit} className="flex flex-col gap-3 rounded-lg border border-primary-100 bg-primary-50/40 p-4">
               <h3 className="text-sm font-semibold text-slate-800">{editing ? 'Sửa kỳ học phí' : 'Thêm kỳ học phí'}</h3>
-              {formError && <Alert message={formError} />}
+              {formError && <Alert message={formError} autoHide />}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div className="sm:col-span-1">
                   <label className="label" htmlFor="p-name">

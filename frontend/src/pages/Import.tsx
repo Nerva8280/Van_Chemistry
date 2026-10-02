@@ -295,7 +295,7 @@ export default function Import() {
         </p>
       </div>
 
-      {error && <Alert message={error} />}
+      {error && <Alert message={error} autoHide />}
 
       <StepCard step={1} title="Chọn file và cài đặt">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">

@@ -161,7 +161,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {error && <Alert message={error} />}
+      {error && <Alert message={error} autoHide />}
 
       {loading && !data ? (
         <div className="flex justify-center py-16">

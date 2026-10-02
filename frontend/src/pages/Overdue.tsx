@@ -90,7 +90,7 @@ export default function Overdue() {
         </div>
       </div>
 
-      {error && <Alert message={error} />}
+      {error && <Alert message={error} autoHide />}
 
       {!loading && rows.length > 0 && (
         <p className="text-sm text-slate-600">

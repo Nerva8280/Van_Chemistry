@@ -68,7 +68,7 @@ export default function GenerateStep({ data, update, onGenerated }: GenerateStep
           message={`Còn ${missing} câu chưa có đáp án. Bạn vẫn có thể tạo mã đề trước và chọn đáp án sau ở bước 1; bảng đáp án sẽ tự cập nhật.`}
         />
       )}
-      {message && <Alert variant="success" message={message} />}
+      {message && <Alert variant="success" message={message} autoHide />}
 
       <div>
         <label className="label" htmlFor="version-count">

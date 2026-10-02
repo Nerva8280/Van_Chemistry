@@ -155,7 +155,7 @@ export default function CreatePeriodsModal({ column, candidates, onlyClassId, on
       widthClassName="max-w-3xl"
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        {error && <Alert message={error} />}
+        {error && <Alert message={error} autoHide />}
 
         {candidates.length === 0 ? (
           <p className="text-sm text-slate-500">Mọi lớp đang hiển thị đều đã có kỳ học phí trong tháng này.</p>

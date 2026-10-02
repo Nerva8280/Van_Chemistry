@@ -231,8 +231,8 @@ export default function ExamFromImages() {
         </p>
       </div>
 
-      {error && <Alert message={error} />}
-      {notice && <Alert message={notice} variant="info" />}
+      {error && <Alert message={error} autoHide />}
+      {notice && <Alert message={notice} variant="info" autoHide />}
       {(items.length > 0 || adding > 0) && (
         <ol className="grid grid-cols-2 gap-3 min-[600px]:grid-cols-3 lg:grid-cols-4">
           {items.map((it, i) => (

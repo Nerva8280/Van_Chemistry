@@ -836,8 +836,8 @@ export default function Tuition() {
         <span className="text-slate-400">Bấm vào chữ trong ô để sửa số tiền, ngày đóng.</span>
       </div>
 
-      {error && <Alert message={error} />}
-      {info && <Alert variant="info" message={info} />}
+      {error && <Alert message={error} autoHide />}
+      {info && <Alert variant="info" message={info} autoHide />}
       {data && !loading && visibleStudents.length > 0 && !pageHasPeriods && (
         <Alert
           variant="info"

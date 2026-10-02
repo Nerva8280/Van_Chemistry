@@ -205,7 +205,7 @@ export default function ExamEditor() {
       </div>
 
       {saveError && saveState === 'error' && <Alert message={saveError} />}
-      {printError && <Alert message={printError} />}
+      {printError && <Alert message={printError} autoHide />}
 
       {warnings.length > 0 && (
         <div className="rounded-lg bg-warning-50 px-4 py-3 text-sm text-warning-700 ring-1 ring-inset ring-warning-100">

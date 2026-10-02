@@ -124,7 +124,7 @@ export default function PaymentEditModal({ target, onClose, onSaved, onRemoved }
     <>
       <Modal open={!!target && !removeOpen} title="Cập nhật học phí" onClose={onClose}>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {error && <Alert message={error} />}
+          {error && <Alert message={error} autoHide />}
 
           <dl className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1.5 rounded-lg bg-slate-50 p-3 text-sm">
             <dt className="text-slate-500">Học sinh</dt>

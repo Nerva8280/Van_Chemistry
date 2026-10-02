@@ -136,7 +136,7 @@ export default function Exams() {
         đề đã in, AI sẽ đọc thành đề để bạn kiểm tra và sửa.
       </p>
 
-      {error && <Alert message={error} />}
+      {error && <Alert message={error} autoHide />}
 
       <div className="card overflow-x-auto p-0">
         {loading ? (

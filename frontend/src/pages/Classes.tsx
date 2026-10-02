@@ -127,7 +127,7 @@ export default function Classes() {
         </button>
       </div>
 
-      {error && <Alert message={error} />}
+      {error && <Alert message={error} autoHide />}
 
       <div className="card overflow-x-auto p-0">
         {loading ? (
@@ -219,7 +219,7 @@ export default function Classes() {
 
       <Modal open={modalOpen} title={editing ? 'Sửa lớp học' : 'Thêm lớp học'} onClose={() => setModalOpen(false)}>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {formError && <Alert message={formError} />}
+          {formError && <Alert message={formError} autoHide />}
           <div>
             <label className="label" htmlFor="name">
               Tên lớp

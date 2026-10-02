@@ -67,7 +67,7 @@ export default function Login() {
 
         {IS_TEST ? (
           <form onSubmit={handleTestLogin} className="flex flex-col gap-3">
-            {testError && <Alert message={testError} />}
+            {testError && <Alert message={testError} autoHide />}
             <div>
               <label className="label" htmlFor="test-password">
                 Mật khẩu môi trường test
