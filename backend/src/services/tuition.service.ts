@@ -18,6 +18,21 @@ export function isOverdue(dueDate: Date | null, now: Date = new Date()): boolean
   return dueDate !== null && computeOverdue({ isPaid: false, dueDate, now }).isOverdue;
 }
 
+/** Due date of one student's payment: their own period end if set, else the class period's end. */
+export function effectiveDueDate(p: { customEndDate: Date | null; period: { endDate: Date | null } }): Date | null {
+  return p.customEndDate ?? p.period.endDate;
+}
+
+/** Prisma filter: payments whose effective due date is before `before`. */
+export function dueBeforeFilter(before: Date): Prisma.TuitionPaymentWhereInput {
+  return {
+    OR: [
+      { customEndDate: { lt: before } },
+      { customEndDate: null, period: { endDate: { lt: before } } },
+    ],
+  };
+}
+
 export function paymentStatus(
   p: { isPaid: boolean; paidAmount: number; dueDate: Date | null },
   now: Date = new Date()
@@ -54,7 +69,9 @@ export function serializePayment(p: TuitionPayment & { period: TuitionPeriod }, 
     isPaid: p.isPaid,
     paidDate: p.paidDate,
     note: p.note,
-    status: paymentStatus({ isPaid: p.isPaid, paidAmount, dueDate: p.period.endDate }, now),
+    customStartDate: p.customStartDate,
+    customEndDate: p.customEndDate,
+    status: paymentStatus({ isPaid: p.isPaid, paidAmount, dueDate: effectiveDueDate(p) }, now),
     updatedAt: p.updatedAt,
   };
 }

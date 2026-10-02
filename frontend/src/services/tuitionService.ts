@@ -13,7 +13,15 @@ export interface TuitionGridParams {
 
 export type PaymentPatch =
   | { isPaid: boolean }
-  | { paidAmount: number; paidDate?: string | null; isPaid?: boolean; note?: string | null }
+  | {
+      paidAmount: number;
+      paidDate?: string | null;
+      isPaid?: boolean;
+      note?: string | null;
+      /** yyyy-MM-dd; cả hai null = bỏ kỳ riêng */
+      customStartDate?: string | null;
+      customEndDate?: string | null;
+    }
   | { note: string | null };
 
 export const tuitionService = {
@@ -59,6 +67,18 @@ export const tuitionService = {
     includePaid: boolean
   ): Promise<{ removed: number; keptPaid: number; notEnrolled: number }> {
     const res = await api.post('/tuition/payments/bulk-unenroll', { studentIds, year, month, includePaid });
+    return res.data;
+  },
+
+  /** Đặt (hoặc bỏ, khi cả hai ngày null) kỳ riêng cho nhiều học sinh trong kỳ tháng (year, month). */
+  async bulkCustomPeriod(
+    studentIds: string[],
+    year: number,
+    month: number,
+    startDate: string | null,
+    endDate: string | null
+  ): Promise<{ updated: number; notEnrolled: number }> {
+    const res = await api.post('/tuition/payments/bulk-custom-period', { studentIds, year, month, startDate, endDate });
     return res.data;
   },
 

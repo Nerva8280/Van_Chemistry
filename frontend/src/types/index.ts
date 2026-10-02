@@ -57,6 +57,9 @@ export interface Payment {
   isPaid: boolean;
   paidDate: string | null;
   note: string | null;
+  /** Kỳ riêng của học sinh vào học lệch với lớp; null = theo kỳ chung của lớp. */
+  customStartDate: string | null;
+  customEndDate: string | null;
   status: PaymentStatus;
   updatedAt: string;
 }

@@ -3,6 +3,7 @@ import prisma from "../config/db";
 import { toNumber } from "../utils/money";
 import { computeOverdue, startOfDay } from "../services/overdue.service";
 import { buildOverdueExportWorkbook, OverdueExportRow } from "../services/excel.service";
+import { dueBeforeFilter, effectiveDueDate } from "../services/tuition.service";
 
 function resolveYear(req: Request): number | undefined {
   const y = parseInt((req.query.year as string) ?? "", 10);
@@ -15,15 +16,16 @@ export async function computeOverdueList(userId: string, year?: number): Promise
     where: {
       isPaid: false,
       student: { class: { userId } },
-      period: { endDate: { lt: startOfDay(now) }, ...(year ? { year } : {}) },
+      ...(year ? { period: { year } } : {}),
+      ...dueBeforeFilter(startOfDay(now)),
     },
     include: { student: { include: { class: true } }, period: true },
-    orderBy: [{ period: { endDate: "asc" } }],
   });
+  payments.sort((a, b) => (effectiveDueDate(a)?.getTime() ?? 0) - (effectiveDueDate(b)?.getTime() ?? 0));
 
   const rows: OverdueExportRow[] = [];
   for (const p of payments) {
-    const dueDate = p.period.endDate;
+    const dueDate = effectiveDueDate(p);
     if (!dueDate) continue;
     const overdue = computeOverdue({ isPaid: false, dueDate, now });
     if (!overdue.isOverdue || !overdue.severity) continue;

@@ -44,6 +44,9 @@ export default function PaymentEditModal({ target, onClose, onSaved, onRemoved }
   const [error, setError] = useState('');
   const [removeOpen, setRemoveOpen] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [customOn, setCustomOn] = useState(false);
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
 
   useEffect(() => {
     if (!target) return;
@@ -51,6 +54,10 @@ export default function PaymentEditModal({ target, onClose, onSaved, onRemoved }
     setAmount(String(p.paidAmount ?? 0));
     setPaidDate(toDateInput(p.paidDate));
     setNote(p.note ?? '');
+    const hasCustom = !!(p.customStartDate || p.customEndDate);
+    setCustomOn(hasCustom);
+    setCustomStart(toDateInput(hasCustom ? p.customStartDate : target.period?.startDate ?? null));
+    setCustomEnd(toDateInput(hasCustom ? p.customEndDate : target.period?.endDate ?? null));
     setConfirmFull(p.isPaid && p.paidAmount < p.expectedAmount);
     setError('');
     setRemoveOpen(false);
@@ -62,11 +69,21 @@ export default function PaymentEditModal({ target, onClose, onSaved, onRemoved }
   const amountNum = Number(amount);
   const amountValid = amount.trim() !== '' && Number.isInteger(amountNum) && amountNum >= 0;
   const range = period ? formatDateRange(period.startDate, period.endDate) : '';
+  const hasCustom = !!(payment.customStartDate || payment.customEndDate);
+  const dueDate = hasCustom ? payment.customEndDate : period?.endDate ?? null;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!amountValid) {
       setError('Số tiền đã đóng phải là số nguyên không âm (đơn vị: đồng).');
+      return;
+    }
+    if (customOn && !customEnd) {
+      setError('Hãy nhập "Đến ngày" của kỳ riêng (đây là hạn đóng của em này).');
+      return;
+    }
+    if (customOn && customStart && customEnd && customStart > customEnd) {
+      setError('Ngày bắt đầu kỳ riêng phải trước hoặc bằng ngày kết thúc.');
       return;
     }
     setSaving(true);
@@ -77,6 +94,8 @@ export default function PaymentEditModal({ target, onClose, onSaved, onRemoved }
         paidAmount: amountNum,
         paidDate: paidDate || null,
         note: note.trim() || null,
+        customStartDate: customOn ? customStart || null : null,
+        customEndDate: customOn ? customEnd || null : null,
         ...(partialConfirm ? { isPaid: true } : {}),
       });
       onSaved(updated);
@@ -116,10 +135,15 @@ export default function PaymentEditModal({ target, onClose, onSaved, onRemoved }
             <dd className="text-slate-700">
               {period?.name ?? `Tháng ${payment.month}`}
               {range && <span className="text-slate-500"> ({range})</span>}
+              {hasCustom && (
+                <span className="mt-0.5 block text-xs font-medium text-primary-700">
+                  Kỳ riêng: {formatDateRange(payment.customStartDate, payment.customEndDate)}
+                </span>
+              )}
             </dd>
             <dt className="text-slate-500">Hạn đóng</dt>
             <dd className="text-slate-700">
-              {period?.endDate ? formatDate(period.endDate) : <span className="text-slate-400">Chưa có ngày kết thúc kỳ</span>}
+              {dueDate ? formatDate(dueDate) : <span className="text-slate-400">Chưa có ngày kết thúc kỳ</span>}
             </dd>
             <dt className="text-slate-500">Học phí dự kiến</dt>
             <dd className="font-medium tabular-nums text-slate-800">{formatCurrency(expected)}</dd>
@@ -201,6 +225,39 @@ export default function PaymentEditModal({ target, onClose, onSaved, onRemoved }
               onChange={(e) => setPaidDate(e.target.value)}
             />
             <p className="mt-1 text-xs text-slate-400">Để trống nếu không rõ ngày đóng.</p>
+          </div>
+
+          <div className="rounded-lg border border-slate-200 p-3">
+            <label className="flex cursor-pointer items-start gap-2 text-sm font-medium text-slate-800">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 accent-primary-500"
+                checked={customOn}
+                onChange={(e) => setCustomOn(e.target.checked)}
+              />
+              <span>
+                Kỳ riêng cho em này
+                <span className="block text-xs font-normal text-slate-500">
+                  Dùng khi em vào học lệch thời gian với cả lớp. Hạn đóng của em sẽ là ngày kết thúc kỳ riêng.
+                </span>
+              </span>
+            </label>
+            {customOn && (
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="label text-xs" htmlFor="customStart">
+                    Từ ngày
+                  </label>
+                  <input id="customStart" className="input" type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} />
+                </div>
+                <div>
+                  <label className="label text-xs" htmlFor="customEnd">
+                    Đến ngày (hạn đóng)
+                  </label>
+                  <input id="customEnd" className="input" type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} />
+                </div>
+              </div>
+            )}
           </div>
 
           <div>

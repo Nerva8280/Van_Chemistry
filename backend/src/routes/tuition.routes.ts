@@ -6,6 +6,7 @@ import {
   bulkMarkPaid,
   bulkEnroll,
   bulkUnenroll,
+  bulkCustomPeriod,
   createPayment,
   deletePayment,
 } from "../controllers/tuition.controller";
@@ -17,6 +18,7 @@ router.post("/payments", asyncHandler(createPayment));
 router.post("/payments/bulk-paid", asyncHandler(bulkMarkPaid));
 router.post("/payments/bulk-enroll", asyncHandler(bulkEnroll));
 router.post("/payments/bulk-unenroll", asyncHandler(bulkUnenroll));
+router.post("/payments/bulk-custom-period", asyncHandler(bulkCustomPeriod));
 router.patch("/payments/:id", asyncHandler(updatePayment));
 router.delete("/payments/:id", asyncHandler(deletePayment));
 

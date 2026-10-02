@@ -95,6 +95,10 @@ model TuitionPayment {
   isPaid         Boolean       @default(false)
   paidDate       DateTime?
   note           String?
+  // Own dates for a student who started at a different time than the class. When set, the
+  // due date is customEndDate instead of the period's endDate.
+  customStartDate DateTime?
+  customEndDate   DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   reminders      ReminderLog[]

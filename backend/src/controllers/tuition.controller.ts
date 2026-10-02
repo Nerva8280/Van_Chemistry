@@ -160,15 +160,53 @@ export async function updatePayment(req: Request, res: Response) {
     note: body.note !== undefined ? (body.note ? String(body.note).slice(0, 500) : null) : undefined,
   };
 
+  const data = buildPaymentUpdate(
+    { expectedAmount: toNumber(existing.expectedAmount), paidDate: existing.paidDate },
+    input
+  );
+  if (body.customStartDate !== undefined || body.customEndDate !== undefined) {
+    const start = body.customStartDate !== undefined ? parseDateInput(body.customStartDate, "Ngày bắt đầu kỳ riêng") : existing.customStartDate;
+    const end = body.customEndDate !== undefined ? parseDateInput(body.customEndDate, "Ngày kết thúc kỳ riêng") : existing.customEndDate;
+    assertCustomRange(start, end);
+    data.customStartDate = start;
+    data.customEndDate = end;
+  }
+
   const updated = await prisma.tuitionPayment.update({
     where: { id: existing.id },
-    data: buildPaymentUpdate(
-      { expectedAmount: toNumber(existing.expectedAmount), paidDate: existing.paidDate },
-      input
-    ),
+    data,
     include: { period: true },
   });
   res.json(serializePayment(updated));
+}
+
+function assertCustomRange(start: Date | null, end: Date | null) {
+  if (start && end && start > end) throw new AppError("Ngày bắt đầu kỳ riêng phải trước hoặc bằng ngày kết thúc.");
+}
+
+/**
+ * Sets (or clears, with both dates null) a student's own period dates for the class period of
+ * one month, for several students at once. Only students enrolled in that period are changed.
+ */
+export async function bulkCustomPeriod(req: Request, res: Response) {
+  const userId = req.ownerId!;
+  const { studentIds, year, month } = req.body ?? {};
+  if (!Array.isArray(studentIds) || studentIds.length === 0 || studentIds.some((id) => typeof id !== "string")) {
+    throw new AppError("Danh sách học sinh không hợp lệ.");
+  }
+  if (studentIds.length > 1000) throw new AppError("Chỉ được chọn tối đa 1000 học sinh mỗi lần.");
+  const y = Number(year);
+  const m = Number(month);
+  if (!Number.isInteger(y) || !Number.isInteger(m) || m < 1 || m > 12) throw new AppError("Tháng hoặc năm không hợp lệ.");
+  const start = parseDateInput(req.body?.startDate ?? null, "Ngày bắt đầu kỳ riêng");
+  const end = parseDateInput(req.body?.endDate ?? null, "Ngày kết thúc kỳ riêng");
+  assertCustomRange(start, end);
+
+  const result = await prisma.tuitionPayment.updateMany({
+    where: { studentId: { in: studentIds as string[] }, student: { class: { userId } }, period: { year: y, month: m } },
+    data: { customStartDate: start, customEndDate: end },
+  });
+  res.json({ updated: result.count, notEnrolled: studentIds.length - result.count });
 }
 
 export async function bulkMarkPaid(req: Request, res: Response) {
@@ -299,4 +337,13 @@ export async function deletePayment(req: Request, res: Response) {
   res.status(204).end();
 }
 
-export default { getTuitionGrid, updatePayment, bulkMarkPaid, bulkEnroll, bulkUnenroll, createPayment, deletePayment };
+export default {
+  getTuitionGrid,
+  updatePayment,
+  bulkMarkPaid,
+  bulkEnroll,
+  bulkUnenroll,
+  bulkCustomPeriod,
+  createPayment,
+  deletePayment,
+};

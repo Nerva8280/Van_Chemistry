@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import prisma from "../config/db";
 import { toNumber } from "../utils/money";
 import { startOfDay } from "../services/overdue.service";
-import { isOverdue, paymentStatus, PaymentStatus } from "../services/tuition.service";
+import { effectiveDueDate, isOverdue, paymentStatus, PaymentStatus } from "../services/tuition.service";
 
 function parseIntParam(value: unknown): number | undefined {
   const n = parseInt(String(value ?? ""), 10);
@@ -46,7 +46,7 @@ export async function getDashboard(req: Request, res: Response) {
       p,
       expected,
       paid,
-      status: paymentStatus({ isPaid: p.isPaid, paidAmount: paid, dueDate: p.period.endDate }, now),
+      status: paymentStatus({ isPaid: p.isPaid, paidAmount: paid, dueDate: effectiveDueDate(p) }, now),
     };
   });
 
@@ -72,7 +72,7 @@ export async function getDashboard(req: Request, res: Response) {
 
   const overdueStudentIds = new Set<string>();
   for (const it of scoped) {
-    if (!it.p.isPaid && isOverdue(it.p.period.endDate, now)) overdueStudentIds.add(it.p.studentId);
+    if (!it.p.isPaid && isOverdue(effectiveDueDate(it.p), now)) overdueStudentIds.add(it.p.studentId);
   }
 
   const monthItems = selectedMonth ? items.filter(({ p }) => p.period.month === selectedMonth) : [];
@@ -112,7 +112,7 @@ export async function getDashboard(req: Request, res: Response) {
       className: classNames.get(it.p.student.classId) ?? "",
       periodName: it.p.period.name,
       month: it.p.period.month,
-      dueDate: it.p.period.endDate,
+      dueDate: effectiveDueDate(it.p),
       expectedAmount: it.expected,
       paidAmount: it.paid,
       remaining: Math.max(it.expected - it.paid, 0),

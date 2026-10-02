@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import prisma from "../config/db";
 import { isExactDaysAgo } from "../services/overdue.service";
 import { sendReminderEmail, ReminderType } from "../services/email.service";
+import { effectiveDueDate } from "../services/tuition.service";
 
 /**
  * Determines which reminder (if any) applies today for a given dueDate:
@@ -35,7 +36,7 @@ export async function runReminderSweep(): Promise<{ sent: number }> {
   let sent = 0;
 
   for (const payment of candidates) {
-    const dueDate = payment.period.endDate;
+    const dueDate = effectiveDueDate(payment);
     if (!dueDate) continue;
     const reminderType = resolveReminderType(dueDate, today);
     if (!reminderType) continue;

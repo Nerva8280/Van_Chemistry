@@ -26,6 +26,7 @@ import {
   formatDateRange,
   formatNumber,
   formatShortRange,
+  toDateInput,
 } from '../utils/format';
 import { STATUS_CELL_CLASS, STATUS_COLOR, STATUS_LABEL, STATUS_ORDER } from '../utils/status';
 
@@ -35,7 +36,8 @@ type ConfirmState =
   | { kind: 'add'; studentId: string; periodId: string; label: string }
   | { kind: 'bulk'; ids: string[]; month: number }
   | { kind: 'enroll'; studentIds: string[]; col: TuitionColumn; alreadyIn: number; noPeriod: string[] }
-  | { kind: 'unenroll'; studentIds: string[]; col: TuitionColumn; unpaidCount: number; paidNames: string[]; notIn: number };
+  | { kind: 'unenroll'; studentIds: string[]; col: TuitionColumn; unpaidCount: number; paidNames: string[]; notIn: number }
+  | { kind: 'custom'; studentIds: string[]; col: TuitionColumn; notIn: number };
 
 const colKey = (c: { year: number; month: number }) => `${c.year}-${c.month}`;
 
@@ -55,7 +57,10 @@ function periodTitle(period: Period | undefined, fallbackMonth: number): string 
 
 function cellTooltip(payment: Payment, period: Period | undefined): string {
   const lines = [periodTitle(period, payment.month)];
-  if (period) lines.push(`Hạn đóng: ${period.endDate ? formatDate(period.endDate) : 'Chưa có ngày kết thúc kỳ'}`);
+  const hasCustom = !!(payment.customStartDate || payment.customEndDate);
+  if (hasCustom) lines.push(`Kỳ riêng của em này: ${formatDateRange(payment.customStartDate, payment.customEndDate)}`);
+  const due = hasCustom ? payment.customEndDate : period?.endDate ?? null;
+  if (period || hasCustom) lines.push(`Hạn đóng: ${due ? formatDate(due) : 'Chưa có ngày kết thúc kỳ'}`);
   lines.push(`Trạng thái: ${STATUS_LABEL[payment.status]}`);
   lines.push(`Đã đóng: ${formatCurrency(payment.paidAmount)} / ${formatCurrency(payment.expectedAmount)}`);
   const dateText = paidDateText(payment);
@@ -150,6 +155,8 @@ export default function Tuition() {
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [unenrollIncludePaid, setUnenrollIncludePaid] = useState(false);
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
   const [editTarget, setEditTarget] = useState<PaymentEditTarget | null>(null);
   const [createTarget, setCreateTarget] = useState<{ column: TuitionColumn; onlyClassId: string | null } | null>(null);
 
@@ -381,6 +388,26 @@ export default function Tuition() {
     setConfirm({ kind: 'enroll', studentIds: eligible.map((s) => s.id), col, alreadyIn, noPeriod });
   }
 
+  function handleCustomClick() {
+    setInfo('');
+    const m = Number(bulkMonth);
+    const col = columns.find((c) => c.month === m);
+    if (!col) return;
+    const chosen = visibleStudents.filter((s) => selected.has(s.id));
+    const enrolled = chosen.filter((s) => paymentOf(s, col));
+    if (enrolled.length === 0) {
+      setInfo(`Các học sinh đã chọn đều không có trong kỳ Tháng ${m}. Hãy "Thêm vào kỳ" trước.`);
+      return;
+    }
+    // Prefill with the first student's own dates, else their class period's dates.
+    const first = enrolled[0];
+    const p = paymentOf(first, col)!;
+    const period = periodOf(classById.get(first.classId), col);
+    setCustomStart(toDateInput(p.customStartDate ?? period?.startDate ?? null));
+    setCustomEnd(toDateInput(p.customEndDate ?? period?.endDate ?? null));
+    setConfirm({ kind: 'custom', studentIds: enrolled.map((s) => s.id), col, notIn: chosen.length - enrolled.length });
+  }
+
   function handleUnenrollClick() {
     setInfo('');
     const m = Number(bulkMonth);
@@ -405,6 +432,33 @@ export default function Tuition() {
       paidNames: enrolled.filter(hasMoney).map((s) => s.fullName),
       notIn: chosen.length - enrolled.length,
     });
+  }
+
+  /** Đặt kỳ riêng (hoặc bỏ, khi cả hai ngày null) cho các học sinh đang xác nhận. */
+  async function applyCustomPeriod(start: string | null, end: string | null) {
+    if (confirm?.kind !== 'custom') return;
+    const res = await tuitionService.bulkCustomPeriod(confirm.studentIds, confirm.col.year, confirm.col.month, start, end);
+    setSelected(new Set());
+    setInfo(
+      end
+        ? `Đã đặt kỳ riêng cho ${res.updated} học sinh ở Tháng ${confirm.col.month}.`
+        : `Đã bỏ kỳ riêng của ${res.updated} học sinh ở Tháng ${confirm.col.month}, các em theo kỳ chung của lớp.`
+    );
+    await load();
+  }
+
+  async function clearCustomPeriod() {
+    setConfirmLoading(true);
+    setError('');
+    try {
+      await applyCustomPeriod(null, null);
+      setConfirm(null);
+    } catch (err) {
+      setConfirm(null);
+      setError(getErrorMessage(err, 'Không thể bỏ kỳ riêng. Vui lòng thử lại.'));
+    } finally {
+      setConfirmLoading(false);
+    }
   }
 
   async function runConfirm() {
@@ -432,6 +486,18 @@ export default function Tuition() {
         const extra = res.noPeriod.length > 0 ? ` ${res.noPeriod.length} học sinh thuộc lớp chưa có kỳ tháng này.` : '';
         setInfo(`Đã thêm ${res.created} học sinh vào kỳ Tháng ${confirm.col.month}.${extra}`);
         await load();
+      } else if (confirm.kind === 'custom') {
+        if (!customEnd) {
+          setError('Hãy nhập "Đến ngày" của kỳ riêng (đây là hạn đóng của các em).');
+          setConfirmLoading(false);
+          return;
+        }
+        if (customStart && customStart > customEnd) {
+          setError('Ngày bắt đầu kỳ riêng phải trước hoặc bằng ngày kết thúc.');
+          setConfirmLoading(false);
+          return;
+        }
+        await applyCustomPeriod(customStart || null, customEnd);
       } else if (confirm.kind === 'unenroll') {
         const res = await tuitionService.bulkUnenroll(
           confirm.studentIds,
@@ -547,6 +613,11 @@ export default function Tuition() {
                 {formatNumber(payment.paidAmount)} / {formatNumber(payment.expectedAmount)}
               </span>
             )}
+            {(payment.customStartDate || payment.customEndDate) && (
+              <span className="mt-0.5 block text-[10px] font-medium text-primary-700 sm:whitespace-nowrap">
+                Kỳ riêng: {formatShortRange(payment.customStartDate, payment.customEndDate)}
+              </span>
+            )}
           </button>
         </div>
       </td>
@@ -628,6 +699,13 @@ export default function Tuition() {
       notes.length ? ' ' + notes.join(' ') : ''
     }`;
     confirmLabel = 'Thêm vào kỳ';
+  } else if (confirm?.kind === 'custom') {
+    confirmTitle = `Kỳ riêng – Tháng ${confirm.col.month}/${confirm.col.year}`;
+    confirmMessage = `Đặt khoảng ngày riêng cho ${confirm.studentIds.length} học sinh (dùng cho các em vào học lệch thời gian với cả lớp). Hạn đóng của các em là "Đến ngày".${
+      confirm.notIn > 0 ? ` ${confirm.notIn} học sinh không có trong kỳ này nên được bỏ qua.` : ''
+    }`;
+    confirmLabel = 'Đặt kỳ riêng';
+    confirmDanger = false;
   } else if (confirm?.kind === 'unenroll') {
     confirmTitle = 'Bỏ khỏi kỳ';
     const total = unenrollIncludePaid ? confirm.unpaidCount + confirm.paidNames.length : confirm.unpaidCount;
@@ -798,7 +876,10 @@ export default function Tuition() {
           >
             Bỏ khỏi kỳ
           </button>
-          <button type="button" className="btn-secondary max-sm:col-span-2 max-sm:px-2" onClick={() => setSelected(new Set())}>
+          <button type="button" className="btn-secondary bg-white max-sm:px-2" onClick={handleCustomClick} disabled={!bulkMonth}>
+            Đặt kỳ riêng
+          </button>
+          <button type="button" className="btn-secondary max-sm:px-2" onClick={() => setSelected(new Set())}>
             Bỏ chọn
           </button>
         </div>
@@ -980,6 +1061,36 @@ export default function Tuition() {
         onConfirm={runConfirm}
         onCancel={() => setConfirm(null)}
       >
+        {confirm?.kind === 'custom' && (
+          <div className="mt-3 flex flex-col gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="label text-xs" htmlFor="bulk-custom-start">
+                  Từ ngày
+                </label>
+                <input id="bulk-custom-start" type="date" className="input" value={customStart} onChange={(e) => setCustomStart(e.target.value)} />
+              </div>
+              <div>
+                <label className="label text-xs" htmlFor="bulk-custom-end">
+                  Đến ngày (hạn đóng)
+                </label>
+                <input id="bulk-custom-end" type="date" className="input" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} />
+              </div>
+            </div>
+            {!customEnd && <p className="text-xs text-danger-600">Cần nhập "Đến ngày".</p>}
+            {customStart && customEnd && customStart > customEnd && (
+              <p className="text-xs text-danger-600">Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.</p>
+            )}
+            <button
+              type="button"
+              className="self-start text-sm font-medium text-primary-600 hover:underline disabled:opacity-50"
+              onClick={clearCustomPeriod}
+              disabled={confirmLoading}
+            >
+              Bỏ kỳ riêng (các em theo kỳ chung của lớp)
+            </button>
+          </div>
+        )}
         {confirm?.kind === 'unenroll' && confirm.paidNames.length > 0 && (
           <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg bg-danger-50 p-3 text-sm text-danger-600">
             <input
