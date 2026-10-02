@@ -169,6 +169,43 @@ function editTable(action: TableAction) {
   root.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
+const SIZE_STEP = 10;
+const MIN_WIDTH = 24;
+const MIN_HEIGHT = 20;
+
+/**
+ * Đổi độ rộng cả cột / độ cao cả hàng chứa ô đang chọn thêm `delta` px. Lưu bằng thuộc tính
+ * width/height trên từng ô (bộ làm sạch giữ lại), lấy kích thước đang hiển thị làm mốc.
+ */
+function resizeCell(kind: 'col' | 'row', delta: number) {
+  const cell = currentCell();
+  if (!cell) return;
+  const root = editableRoot(cell)!;
+  const table = cell.closest('table')!;
+  // Ô dùng box-sizing: border-box (Tailwind), nên width/height = kích thước nhìn thấy của ô.
+  const rect = cell.getBoundingClientRect();
+  if (kind === 'col') {
+    const width = String(Math.max(MIN_WIDTH, Math.round(rect.width + delta)));
+    Array.from(table.rows).forEach((r) => r.cells[cell.cellIndex]?.setAttribute('width', width));
+  } else {
+    const height = String(Math.max(MIN_HEIGHT, Math.round(rect.height + delta)));
+    Array.from((cell.parentElement as HTMLTableRowElement).cells).forEach((c) => c.setAttribute('height', height));
+  }
+  root.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+/** Bỏ mọi độ rộng/độ cao đã chỉnh, để bảng tự co giãn theo chữ. */
+function autoSizeTable() {
+  const cell = currentCell();
+  if (!cell) return;
+  const root = editableRoot(cell)!;
+  cell.closest('table')!.querySelectorAll('td').forEach((c) => {
+    c.removeAttribute('width');
+    c.removeAttribute('height');
+  });
+  root.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
 function tableHtml(rows: number, cols: number): string {
   const tr = `<tr>${'<td><br></td>'.repeat(cols)}</tr>`;
   return `<table class="ex-table"><tbody>${tr.repeat(rows)}</tbody></table><br>`;
@@ -344,6 +381,24 @@ export default function FormatToolbar() {
           </button>
           <button type="button" className={`${btn} text-danger-600`} onMouseDown={press(() => editTable('delTable'))}>
             Xóa bảng
+          </button>
+          <span className="mx-1 h-6 w-px bg-slate-300" aria-hidden="true" />
+          <span>Cột:</span>
+          <button type="button" className={btn} title="Thu hẹp cột đang chọn" onMouseDown={press(() => resizeCell('col', -SIZE_STEP))}>
+            ← Hẹp
+          </button>
+          <button type="button" className={btn} title="Nới rộng cột đang chọn" onMouseDown={press(() => resizeCell('col', SIZE_STEP))}>
+            Rộng →
+          </button>
+          <span>Hàng:</span>
+          <button type="button" className={btn} title="Giảm độ cao hàng đang chọn" onMouseDown={press(() => resizeCell('row', -SIZE_STEP))}>
+            ↑ Thấp
+          </button>
+          <button type="button" className={btn} title="Tăng độ cao hàng đang chọn" onMouseDown={press(() => resizeCell('row', SIZE_STEP))}>
+            Cao ↓
+          </button>
+          <button type="button" className={btn} title="Bỏ các độ rộng, độ cao đã chỉnh" onMouseDown={press(autoSizeTable)}>
+            Tự động
           </button>
         </div>
       )}

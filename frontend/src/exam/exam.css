@@ -36,9 +36,15 @@
 .ex-table td {
   border: 1px solid #000;
   padding: 2px 6px;
-  min-width: 2.5em;
-  height: 1.5em;
   vertical-align: middle;
+}
+/* Ô chưa chỉnh kích thước: mặc định rộng/cao vừa một ô chữ. Ô đã chỉnh dùng thuộc tính width/height
+   (CSS ở đây sẽ đè mất nên chỉ áp dụng khi chưa có). */
+.ex-table td:not([width]) {
+  min-width: 2.5em;
+}
+.ex-table td:not([height]) {
+  height: 1.5em;
 }
 .ex-header {
   margin-bottom: 6px;
