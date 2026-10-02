@@ -28,6 +28,18 @@
 .ex-right {
   text-align: right;
 }
+.ex-table {
+  border-collapse: collapse;
+  margin: 4px 0;
+  max-width: 100%;
+}
+.ex-table td {
+  border: 1px solid #000;
+  padding: 2px 6px;
+  min-width: 2.5em;
+  height: 1.5em;
+  vertical-align: middle;
+}
 .ex-header {
   margin-bottom: 6px;
 }

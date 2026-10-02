@@ -4,8 +4,8 @@
 import DOMPurify from 'dompurify';
 import { ExamData, ExamDoc } from './types';
 
-const ALLOWED_TAGS = ['b', 'strong', 'i', 'em', 'u', 'sub', 'sup', 'br', 'span', 'div', 'p', 'img'];
-const ALLOWED_ATTR = ['class', 'src', 'width', 'height', 'alt'];
+const ALLOWED_TAGS = ['b', 'strong', 'i', 'em', 'u', 'sub', 'sup', 'br', 'span', 'div', 'p', 'img', 'table', 'tbody', 'tr', 'td'];
+const ALLOWED_ATTR = ['class', 'src', 'width', 'height', 'alt', 'colspan', 'rowspan'];
 const DATA_IMG = /^data:image\/(png|jpeg|gif);base64,[a-z0-9+/=\s]+$/i;
 
 DOMPurify.addHook('uponSanitizeAttribute', (_node, data) => {
@@ -19,6 +19,8 @@ DOMPurify.addHook('uponSanitizeAttribute', (_node, data) => {
       .join(' ');
     if (cls) data.attrValue = cls;
     else data.keepAttr = false;
+  } else if (name === 'colspan' || name === 'rowspan') {
+    if (!/^\d{1,2}$/.test(data.attrValue)) data.keepAttr = false;
   } else if (name === 'width' || name === 'height') {
     if (!/^\d{1,4}$/.test(data.attrValue)) data.keepAttr = false;
   }
@@ -32,7 +34,7 @@ export function sanitizeHtml(html: string): string {
     ALLOWED_URI_REGEXP: /^data:image\/(png|jpeg|gif);base64,/i,
     // Có ALLOWED_URI_REGEXP thì DOMPurify bỏ mọi thuộc tính không thuộc nhóm "an toàn với URI" có
     // giá trị không khớp regex, kể cả width="300". Hook ở trên đã chỉ cho phép số nguyên.
-    ADD_URI_SAFE_ATTR: ['width', 'height'],
+    ADD_URI_SAFE_ATTR: ['width', 'height', 'colspan', 'rowspan'],
   }) as string;
 }
 

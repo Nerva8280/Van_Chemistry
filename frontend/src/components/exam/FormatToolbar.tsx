@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'react';
+
 type Script = 'sub' | 'sup';
 
 function editableRoot(node: Node | null): HTMLElement | null {
@@ -90,26 +92,263 @@ function runCommand(cmd: 'bold' | 'italic') {
   document.execCommand(cmd);
 }
 
-/** Thanh nút định dạng cho chữ đang chọn trong ô sửa (chỉ số dưới/trên, đậm, nghiêng). */
+type Align = 'left' | 'center' | 'right';
+const JUSTIFY: Record<Align, string> = { left: 'justifyLeft', center: 'justifyCenter', right: 'justifyRight' };
+
+/**
+ * Căn lề các dòng đang chọn. Trình duyệt ghi căn lề bằng style/align, mà bộ làm sạch bỏ style,
+ * nên đổi ngay sang class ex-center / ex-right (căn trái = bỏ class).
+ */
+function align(where: Align) {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return;
+  const root = editableRoot(sel.getRangeAt(0).commonAncestorContainer);
+  if (!root) return;
+  document.execCommand('styleWithCSS', false, 'true');
+  document.execCommand(JUSTIFY[where]);
+  document.execCommand('styleWithCSS', false, 'false');
+  root.querySelectorAll<HTMLElement>('[style], [align]').forEach((el) => {
+    const value = (el.style.textAlign || el.getAttribute('align') || '').toLowerCase();
+    if (!value) return;
+    el.style.removeProperty('text-align');
+    el.removeAttribute('align');
+    if (!el.getAttribute('style')?.trim()) el.removeAttribute('style');
+    el.classList.remove('ex-center', 'ex-right');
+    if (value === 'center') el.classList.add('ex-center');
+    else if (value === 'right' || value === 'end') el.classList.add('ex-right');
+    if (!el.classList.length) el.removeAttribute('class');
+  });
+  root.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function currentCell(): HTMLTableCellElement | null {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return null;
+  const node = sel.getRangeAt(0).startContainer;
+  const el = node instanceof HTMLElement ? node : node.parentElement;
+  const cell = el?.closest<HTMLTableCellElement>('td') ?? null;
+  return cell && editableRoot(cell) ? cell : null;
+}
+
+function emptyCell(): HTMLTableCellElement {
+  const td = document.createElement('td');
+  td.innerHTML = '<br>';
+  return td;
+}
+
+type TableAction = 'addRow' | 'addCol' | 'delRow' | 'delCol' | 'delTable';
+
+/** Thêm/xóa hàng, cột tại ô đang đặt con trỏ. */
+function editTable(action: TableAction) {
+  const cell = currentCell();
+  if (!cell) return;
+  const root = editableRoot(cell)!;
+  const row = cell.parentElement as HTMLTableRowElement;
+  const table = cell.closest('table')!;
+  const rows = Array.from(table.rows);
+  const col = cell.cellIndex;
+  if (action === 'addRow') {
+    const tr = document.createElement('tr');
+    for (let i = 0; i < row.cells.length; i++) tr.append(emptyCell());
+    row.after(tr);
+  } else if (action === 'addCol') {
+    rows.forEach((r) => {
+      const ref = r.cells[col];
+      if (ref) ref.after(emptyCell());
+      else r.append(emptyCell());
+    });
+  } else if (action === 'delRow') {
+    if (rows.length <= 1) table.remove();
+    else row.remove();
+  } else if (action === 'delCol') {
+    if (row.cells.length <= 1) table.remove();
+    else rows.forEach((r) => r.cells[col]?.remove());
+  } else {
+    table.remove();
+  }
+  root.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function tableHtml(rows: number, cols: number): string {
+  const tr = `<tr>${'<td><br></td>'.repeat(cols)}</tr>`;
+  return `<table class="ex-table"><tbody>${tr.repeat(rows)}</tbody></table><br>`;
+}
+
+const ALIGN_LINES: Record<Align, [number, number][]> = {
+  left: [[2, 14], [2, 10], [2, 14], [2, 9]],
+  center: [[2, 14], [4, 12], [2, 14], [4.5, 11.5]],
+  right: [[2, 14], [6, 14], [2, 14], [7, 14]],
+};
+
+function AlignIcon({ where }: { where: Align }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+      {ALIGN_LINES[where].map(([x1, x2], i) => (
+        <line key={i} x1={x1} x2={x2} y1={3 + i * 3.4} y2={3 + i * 3.4} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      ))}
+    </svg>
+  );
+}
+
+/** Thanh nút định dạng cho ô đang sửa: chỉ số dưới/trên, đậm, nghiêng, căn lề, kẻ bảng. */
 export default function FormatToolbar() {
   const btn =
     'inline-flex h-8 min-w-[2.25rem] items-center justify-center rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-700 hover:bg-slate-50 [@media(pointer:coarse)]:h-10 [@media(pointer:coarse)]:min-w-[2.5rem]';
+  const [inTable, setInTable] = useState(false);
+  const [picker, setPicker] = useState(false);
+  const [rows, setRows] = useState(3);
+  const [cols, setCols] = useState(3);
+  const [hint, setHint] = useState('');
+  const savedRange = useRef<Range | null>(null);
+
+  useEffect(() => {
+    const onChange = () => setInTable(!!currentCell());
+    document.addEventListener('selectionchange', onChange);
+    return () => document.removeEventListener('selectionchange', onChange);
+  }, []);
+
+  useEffect(() => {
+    if (!hint) return;
+    const t = window.setTimeout(() => setHint(''), 3000);
+    return () => window.clearTimeout(t);
+  }, [hint]);
+
+  // Ô chọn số hàng/cột lấy mất focus, nên nhớ vị trí con trỏ trước khi mở.
+  function openPicker() {
+    if (picker) return setPicker(false);
+    const sel = window.getSelection();
+    const range = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
+    if (!range || !editableRoot(range.commonAncestorContainer)) {
+      setHint('Hãy bấm vào chỗ cần chèn bảng trong ô nội dung trước.');
+      return;
+    }
+    if (currentCell()) {
+      setHint('Không chèn bảng bên trong một bảng khác.');
+      return;
+    }
+    savedRange.current = range.cloneRange();
+    setPicker(true);
+  }
+
+  function insertTable() {
+    const range = savedRange.current;
+    setPicker(false);
+    if (!range) return;
+    const root = editableRoot(range.commonAncestorContainer);
+    if (!root || !root.isConnected) return;
+    root.focus();
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+    document.execCommand('insertHTML', false, tableHtml(rows, cols));
+    root.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  const press = (fn: () => void) => (e: { preventDefault: () => void }) => {
+    e.preventDefault();
+    fn();
+  };
+  const sizes = Array.from({ length: 10 }, (_, i) => i + 1);
+
   return (
-    <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-lg bg-slate-100/95 px-3 py-2 text-xs text-slate-600 backdrop-blur">
-      <span>Bôi đen chữ trong ô rồi bấm:</span>
-      <button type="button" className={btn} title="Chỉ số dưới (ví dụ H₂O)" onMouseDown={(e) => { e.preventDefault(); toggleScript('sub'); }}>
-        x<sub>2</sub>
-      </button>
-      <button type="button" className={btn} title="Chỉ số trên (ví dụ Fe³⁺)" onMouseDown={(e) => { e.preventDefault(); toggleScript('sup'); }}>
-        x<sup>2</sup>
-      </button>
-      <button type="button" className={`${btn} font-bold`} title="In đậm" onMouseDown={(e) => { e.preventDefault(); runCommand('bold'); }}>
-        Đ
-      </button>
-      <button type="button" className={`${btn} italic`} title="In nghiêng" onMouseDown={(e) => { e.preventDefault(); runCommand('italic'); }}>
-        N
-      </button>
-      <span className="hidden sm:inline">Bấm lại lần nữa để bỏ định dạng.</span>
+    <div className="sticky top-0 z-10 flex flex-col gap-2 rounded-lg bg-slate-100/95 px-3 py-2 text-xs text-slate-600 backdrop-blur">
+      <div className="flex flex-wrap items-center gap-2">
+        <span>Bôi đen chữ trong ô rồi bấm:</span>
+        <button type="button" className={btn} title="Chỉ số dưới (ví dụ H₂O)" onMouseDown={press(() => toggleScript('sub'))}>
+          x<sub>2</sub>
+        </button>
+        <button type="button" className={btn} title="Chỉ số trên (ví dụ Fe³⁺)" onMouseDown={press(() => toggleScript('sup'))}>
+          x<sup>2</sup>
+        </button>
+        <button type="button" className={`${btn} font-bold`} title="In đậm" onMouseDown={press(() => runCommand('bold'))}>
+          Đ
+        </button>
+        <button type="button" className={`${btn} italic`} title="In nghiêng" onMouseDown={press(() => runCommand('italic'))}>
+          N
+        </button>
+        <span className="mx-1 h-6 w-px bg-slate-300" aria-hidden="true" />
+        <button type="button" className={btn} title="Căn trái" aria-label="Căn trái" onMouseDown={press(() => align('left'))}>
+          <AlignIcon where="left" />
+        </button>
+        <button type="button" className={btn} title="Căn giữa" aria-label="Căn giữa" onMouseDown={press(() => align('center'))}>
+          <AlignIcon where="center" />
+        </button>
+        <button type="button" className={btn} title="Căn phải" aria-label="Căn phải" onMouseDown={press(() => align('right'))}>
+          <AlignIcon where="right" />
+        </button>
+        <span className="mx-1 h-6 w-px bg-slate-300" aria-hidden="true" />
+        <button
+          type="button"
+          className={`${btn} gap-1 ${picker ? 'border-primary-400 bg-primary-50' : ''}`}
+          title="Kẻ bảng tại vị trí con trỏ"
+          aria-expanded={picker}
+          onMouseDown={press(openPicker)}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4">
+            <rect x="1.5" y="2.5" width="13" height="11" rx="1" />
+            <line x1="1.5" y1="6.5" x2="14.5" y2="6.5" />
+            <line x1="1.5" y1="10" x2="14.5" y2="10" />
+            <line x1="6" y1="2.5" x2="6" y2="13.5" />
+            <line x1="10.5" y1="2.5" x2="10.5" y2="13.5" />
+          </svg>
+          Bảng
+        </button>
+        <span className="hidden sm:inline">Bấm lại lần nữa để bỏ định dạng.</span>
+      </div>
+
+      {picker && (
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-1">
+            Số hàng
+            <select className="input h-8 w-16 py-0 text-sm" value={rows} onChange={(e) => setRows(Number(e.target.value))}>
+              {sizes.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-1">
+            Số cột
+            <select className="input h-8 w-16 py-0 text-sm" value={cols} onChange={(e) => setCols(Number(e.target.value))}>
+              {sizes.slice(0, 8).map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="button" className="btn-primary h-8 py-0 text-sm" onClick={insertTable}>
+            Chèn bảng
+          </button>
+          <button type="button" className="btn-secondary h-8 py-0 text-sm" onClick={() => setPicker(false)}>
+            Hủy
+          </button>
+        </div>
+      )}
+
+      {inTable && !picker && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span>Bảng:</span>
+          <button type="button" className={btn} onMouseDown={press(() => editTable('addRow'))}>
+            + Hàng
+          </button>
+          <button type="button" className={btn} onMouseDown={press(() => editTable('addCol'))}>
+            + Cột
+          </button>
+          <button type="button" className={btn} onMouseDown={press(() => editTable('delRow'))}>
+            Xóa hàng
+          </button>
+          <button type="button" className={btn} onMouseDown={press(() => editTable('delCol'))}>
+            Xóa cột
+          </button>
+          <button type="button" className={`${btn} text-danger-600`} onMouseDown={press(() => editTable('delTable'))}>
+            Xóa bảng
+          </button>
+        </div>
+      )}
+
+      {hint && <p className="text-danger-600">{hint}</p>}
     </div>
   );
 }
