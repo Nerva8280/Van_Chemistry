@@ -36,8 +36,11 @@ export interface Student {
   fullName: string;
   classId: string;
   class?: Partial<Class> & { id: string; name: string };
-  parentEmail?: string | null;
   parentPhone?: string | null;
+  /** Tên Facebook/Zalo của phụ huynh. */
+  parentContactName: string | null;
+  parentFacebook: boolean;
+  parentZalo: boolean;
   /** Học phí dự kiến mỗi kỳ. */
   monthlyTuitionFee: number;
   active: boolean;

@@ -13,8 +13,10 @@ export interface ParsedStudentRow {
   row: number;
   fullName: string;
   className: string | null; // raw "Lớp" cell value, may be empty if classId override is used
-  parentEmail: string | null;
   parentPhone: string | null;
+  parentContactName: string | null;
+  parentFacebook: boolean;
+  parentZalo: boolean;
   monthlyTuitionFee: number;
 }
 
@@ -25,11 +27,20 @@ export interface ParseStudentsResult {
 
 const HEADER_FULL_NAME = "Họ và tên";
 const HEADER_CLASS = "Lớp";
-const HEADER_PARENT_EMAIL = "Email phụ huynh";
+const HEADER_PARENT_CONTACT = "Facebook/Zalo phụ huynh";
+const HEADER_CONTACT_CHANNEL = "Kênh liên hệ";
 const HEADER_PARENT_PHONE = "Số điện thoại";
 const HEADER_TUITION_FEE = "Học phí";
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** "Facebook", "Zalo", "Facebook, Zalo" (also "fb"); unknown text yields neither. */
+function parseChannels(raw: string): { facebook: boolean; zalo: boolean } {
+  const s = raw.toLowerCase();
+  return { facebook: /facebook|\bfb\b/.test(s), zalo: /zalo/.test(s) };
+}
+
+export function channelLabel(facebook: boolean, zalo: boolean): string {
+  return [facebook ? "Facebook" : "", zalo ? "Zalo" : ""].filter(Boolean).join(", ");
+}
 const PHONE_REGEX = /^[0-9+()\-.\s]{8,15}$/;
 
 function cellToString(value: unknown): string {
@@ -54,11 +65,11 @@ function parseFeeValue(raw: unknown): number | null {
 /**
  * Parses an uploaded .xlsx or .csv buffer of students, expecting the
  * Vietnamese column headers from the contract:
- *   Họ và tên | Lớp | Email phụ huynh | Số điện thoại | Học phí
+ *   Họ và tên | Lớp | Facebook/Zalo phụ huynh | Kênh liên hệ | Số điện thoại | Học phí
  *
  * Returns parsed rows (structurally valid) plus a list of row-level errors
  * for rows that failed validation (missing name, invalid fee, invalid
- * email/phone format). Row numbers are 1-based counting the header as row 1,
+ * contact/phone). Row numbers are 1-based counting the header as row 1,
  * so the first data row is row 2 — matching what a user sees in Excel.
  */
 export function parseStudentsImportFile(buffer: Buffer): ParseStudentsResult {
@@ -88,7 +99,8 @@ export function parseStudentsImportFile(buffer: Buffer): ParseStudentsResult {
 
     const fullName = cellToString(record[HEADER_FULL_NAME]);
     const className = cellToString(record[HEADER_CLASS]);
-    const parentEmailRaw = cellToString(record[HEADER_PARENT_EMAIL]);
+    const contactName = cellToString(record[HEADER_PARENT_CONTACT]);
+    const channels = parseChannels(cellToString(record[HEADER_CONTACT_CHANNEL]));
     const parentPhoneRaw = cellToString(record[HEADER_PARENT_PHONE]);
     const feeRaw = record[HEADER_TUITION_FEE];
 
@@ -106,8 +118,11 @@ export function parseStudentsImportFile(buffer: Buffer): ParseStudentsResult {
       return;
     }
 
-    if (parentEmailRaw && !EMAIL_REGEX.test(parentEmailRaw)) {
-      errors.push({ row: rowNumber, message: `"${HEADER_PARENT_EMAIL}" không đúng định dạng email.` });
+    if (contactName && !channels.facebook && !channels.zalo) {
+      errors.push({
+        row: rowNumber,
+        message: `Có "${HEADER_PARENT_CONTACT}" nhưng "${HEADER_CONTACT_CHANNEL}" không ghi Facebook hoặc Zalo.`,
+      });
       return;
     }
 
@@ -120,8 +135,10 @@ export function parseStudentsImportFile(buffer: Buffer): ParseStudentsResult {
       row: rowNumber,
       fullName,
       className: className || null,
-      parentEmail: parentEmailRaw || null,
       parentPhone: parentPhoneRaw || null,
+      parentContactName: contactName ? contactName.slice(0, 100) : null,
+      parentFacebook: !!contactName && channels.facebook,
+      parentZalo: !!contactName && channels.zalo,
       monthlyTuitionFee: fee,
     });
   });
@@ -136,8 +153,10 @@ export function parseStudentsImportFile(buffer: Buffer): ParseStudentsResult {
 export interface StudentExportRow {
   fullName: string;
   className: string;
-  parentEmail: string | null;
   parentPhone: string | null;
+  parentContactName: string | null;
+  parentFacebook: boolean;
+  parentZalo: boolean;
   monthlyTuitionFee: number;
   active: boolean;
 }
@@ -146,14 +165,15 @@ export function buildStudentsExportWorkbook(students: StudentExportRow[]): Buffe
   const data = students.map((s) => ({
     [HEADER_FULL_NAME]: s.fullName,
     [HEADER_CLASS]: s.className,
-    [HEADER_PARENT_EMAIL]: s.parentEmail ?? "",
+    [HEADER_PARENT_CONTACT]: s.parentContactName ?? "",
+    [HEADER_CONTACT_CHANNEL]: s.parentContactName ? channelLabel(s.parentFacebook, s.parentZalo) : "",
     [HEADER_PARENT_PHONE]: s.parentPhone ?? "",
     [HEADER_TUITION_FEE]: s.monthlyTuitionFee,
     "Trạng thái": s.active ? "Đang học" : "Ngừng học",
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(data);
-  worksheet["!cols"] = [{ wch: 24 }, { wch: 16 }, { wch: 26 }, { wch: 16 }, { wch: 14 }, { wch: 12 }];
+  worksheet["!cols"] = [{ wch: 24 }, { wch: 16 }, { wch: 26 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 12 }];
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Học sinh");
   return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });

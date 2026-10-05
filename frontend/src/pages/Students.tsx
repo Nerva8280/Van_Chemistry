@@ -11,11 +11,14 @@ import { getErrorMessage } from '../services/api';
 import { Class, ImportResult, Student } from '../types';
 import { formatCurrency } from '../utils/format';
 import { useDebounce } from '../hooks/useDebounce';
+import { FacebookIcon, ParentContact, ZaloIcon } from '../components/ui/ContactIcons';
 
 interface FormState {
   fullName: string;
   classId: string;
-  parentEmail: string;
+  parentContactName: string;
+  parentFacebook: boolean;
+  parentZalo: boolean;
   parentPhone: string;
   monthlyTuitionFee: string;
 }
@@ -23,7 +26,9 @@ interface FormState {
 const emptyForm: FormState = {
   fullName: '',
   classId: '',
-  parentEmail: '',
+  parentContactName: '',
+  parentFacebook: false,
+  parentZalo: false,
   parentPhone: '',
   monthlyTuitionFee: '',
 };
@@ -106,7 +111,9 @@ export default function Students() {
     setForm({
       fullName: student.fullName,
       classId: student.classId,
-      parentEmail: student.parentEmail ?? '',
+      parentContactName: student.parentContactName ?? '',
+      parentFacebook: student.parentFacebook,
+      parentZalo: student.parentZalo,
       parentPhone: student.parentPhone ?? '',
       monthlyTuitionFee: String(student.monthlyTuitionFee),
     });
@@ -125,9 +132,10 @@ export default function Students() {
     } else if (Number.isNaN(fee) || fee < 0) {
       errors.monthlyTuitionFee = 'Học phí phải là số không âm.';
     }
-    if (form.parentEmail.trim() && !/^\S+@\S+\.\S+$/.test(form.parentEmail.trim())) {
-      errors.parentEmail = 'Email không hợp lệ.';
-    }
+    const hasName = !!form.parentContactName.trim();
+    const hasChannel = form.parentFacebook || form.parentZalo;
+    if (hasName && !hasChannel) errors.parentContactName = 'Hãy tick chọn Facebook hoặc Zalo.';
+    if (!hasName && hasChannel) errors.parentContactName = 'Vui lòng nhập tên Facebook/Zalo của phụ huynh.';
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   }
@@ -141,7 +149,9 @@ export default function Students() {
       const payload = {
         fullName: form.fullName.trim(),
         classId: form.classId,
-        parentEmail: form.parentEmail.trim() || undefined,
+        parentContactName: form.parentContactName.trim() || null,
+        parentFacebook: form.parentFacebook,
+        parentZalo: form.parentZalo,
         parentPhone: form.parentPhone.trim() || undefined,
         monthlyTuitionFee: Number(form.monthlyTuitionFee),
       };
@@ -280,8 +290,14 @@ export default function Students() {
                     <dd className="whitespace-nowrap tabular-nums text-slate-800">{formatCurrency(student.monthlyTuitionFee)}</dd>
                   </div>
                   <div className="col-span-2 min-w-0">
-                    <dt className="text-xs text-slate-500">Email phụ huynh</dt>
-                    <dd className="break-all text-slate-700">{student.parentEmail || '—'}</dd>
+                    <dt className="text-xs text-slate-500">Facebook/Zalo phụ huynh</dt>
+                    <dd className="break-words">
+                      <ParentContact
+                        name={student.parentContactName}
+                        facebook={student.parentFacebook}
+                        zalo={student.parentZalo}
+                      />
+                    </dd>
                   </div>
                   <div className="col-span-2 min-w-0">
                     <dt className="text-xs text-slate-500">SĐT phụ huynh</dt>
@@ -304,7 +320,7 @@ export default function Students() {
               <tr>
                 <th className="px-3 py-3 lg:px-4">Họ và tên</th>
                 <th className="px-3 py-3 lg:px-4">Lớp</th>
-                <th className="px-3 py-3 lg:px-4">Email phụ huynh</th>
+                <th className="px-3 py-3 lg:px-4">Facebook/Zalo phụ huynh</th>
                 <th className="px-3 py-3 lg:px-4">SĐT phụ huynh</th>
                 <th className="px-3 py-3 lg:px-4">Học phí mỗi kỳ</th>
                 <th className="px-3 py-3 text-right lg:px-4">Thao tác</th>
@@ -318,7 +334,13 @@ export default function Students() {
                     {!student.active && <span className="ml-1 text-xs font-normal text-slate-400">(đã nghỉ)</span>}
                   </td>
                   <td className="whitespace-nowrap px-3 py-3 text-slate-600 lg:px-4">{classOf(student)?.name ?? '—'}</td>
-                  <td className="break-all px-3 py-3 text-slate-600 lg:break-normal lg:px-4">{student.parentEmail || '—'}</td>
+                  <td className="px-3 py-3 lg:px-4">
+                    <ParentContact
+                      name={student.parentContactName}
+                      facebook={student.parentFacebook}
+                      zalo={student.parentZalo}
+                    />
+                  </td>
                   <td className="whitespace-nowrap px-3 py-3 text-slate-600 lg:px-4">{student.parentPhone || '—'}</td>
                   <td className="whitespace-nowrap px-3 py-3 tabular-nums lg:px-4">{formatCurrency(student.monthlyTuitionFee)}</td>
                   <td className="whitespace-nowrap px-3 py-3 lg:px-4">
@@ -373,19 +395,43 @@ export default function Students() {
             </select>
             {formErrors.classId && <p className="mt-1 text-xs text-danger-600">{formErrors.classId}</p>}
           </div>
-          <div>
-            <label className="label" htmlFor="parentEmail">
-              Email phụ huynh
-            </label>
+          <fieldset>
+            <legend className="label">Liên hệ phụ huynh qua</legend>
+            <div className="mb-2 flex flex-wrap gap-4">
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-primary-500"
+                  checked={form.parentFacebook}
+                  onChange={(e) => setForm((f) => ({ ...f, parentFacebook: e.target.checked }))}
+                />
+                <FacebookIcon />
+                Facebook
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-primary-500"
+                  checked={form.parentZalo}
+                  onChange={(e) => setForm((f) => ({ ...f, parentZalo: e.target.checked }))}
+                />
+                <ZaloIcon />
+                Zalo
+              </label>
+            </div>
             <input
-              id="parentEmail"
+              id="parentContactName"
               className="input"
-              type="email"
-              value={form.parentEmail}
-              onChange={(e) => setForm((f) => ({ ...f, parentEmail: e.target.value }))}
+              value={form.parentContactName}
+              onChange={(e) => setForm((f) => ({ ...f, parentContactName: e.target.value }))}
+              placeholder="Tên Facebook hoặc Zalo của ba mẹ"
+              aria-label="Tên Facebook hoặc Zalo của phụ huynh"
+              maxLength={100}
             />
-            {formErrors.parentEmail && <p className="mt-1 text-xs text-danger-600">{formErrors.parentEmail}</p>}
-          </div>
+            {formErrors.parentContactName && (
+              <p className="mt-1 text-xs text-danger-600">{formErrors.parentContactName}</p>
+            )}
+          </fieldset>
           <div>
             <label className="label" htmlFor="parentPhone">
               Số điện thoại phụ huynh

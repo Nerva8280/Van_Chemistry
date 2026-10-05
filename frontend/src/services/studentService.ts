@@ -4,8 +4,10 @@ import { ImportResult, Student } from '../types';
 export interface StudentPayload {
   fullName: string;
   classId: string;
-  parentEmail?: string;
   parentPhone?: string;
+  parentContactName: string | null;
+  parentFacebook: boolean;
+  parentZalo: boolean;
   monthlyTuitionFee: number;
 }
 

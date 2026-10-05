@@ -36,8 +36,10 @@ export async function exportStudentsReport(req: Request, res: Response) {
     students.map((s) => ({
       fullName: s.fullName,
       className: s.class.name,
-      parentEmail: s.parentEmail,
       parentPhone: s.parentPhone,
+      parentContactName: s.parentContactName,
+      parentFacebook: s.parentFacebook,
+      parentZalo: s.parentZalo,
       monthlyTuitionFee: toNumber(s.monthlyTuitionFee),
       active: s.active,
     }))

@@ -15,8 +15,10 @@ function serializeStudent(student: any) {
     stt: student.stt ?? null,
     fullName: student.fullName,
     classId: student.classId,
-    parentEmail: student.parentEmail,
     parentPhone: student.parentPhone,
+    parentContactName: student.parentContactName ?? null,
+    parentFacebook: !!student.parentFacebook,
+    parentZalo: !!student.parentZalo,
     monthlyTuitionFee: toNumber(student.monthlyTuitionFee),
     active: student.active,
     createdAt: student.createdAt,
@@ -30,6 +32,20 @@ function serializeStudent(student: any) {
         }
       : undefined,
   };
+}
+
+/** A contact name needs at least one channel (Facebook/Zalo), and a channel needs a name. */
+export function parseParentContact(body: any) {
+  const name = typeof body?.parentContactName === "string" ? body.parentContactName.trim().slice(0, 100) : "";
+  const parentFacebook = body?.parentFacebook === true;
+  const parentZalo = body?.parentZalo === true;
+  if (name && !parentFacebook && !parentZalo) {
+    throw new AppError("Hãy tick chọn Facebook hoặc Zalo cho tên liên hệ của phụ huynh.");
+  }
+  if (!name && (parentFacebook || parentZalo)) {
+    throw new AppError("Vui lòng nhập tên Facebook/Zalo của phụ huynh.");
+  }
+  return { parentContactName: name || null, parentFacebook, parentZalo };
 }
 
 async function assertClassOwnership(classId: string, userId: string) {
@@ -63,11 +79,12 @@ export async function listStudents(req: Request, res: Response) {
 
 export async function createStudent(req: Request, res: Response) {
   const userId = req.ownerId!;
-  const { fullName, classId, parentEmail, parentPhone, monthlyTuitionFee } = req.body ?? {};
+  const { fullName, classId, parentPhone, monthlyTuitionFee } = req.body ?? {};
 
   if (!fullName || typeof fullName !== "string" || !fullName.trim()) {
     throw new AppError("Họ và tên học sinh là bắt buộc.");
   }
+  const contact = parseParentContact(req.body);
   if (!classId || typeof classId !== "string") {
     throw new AppError("Lớp học là bắt buộc.");
   }
@@ -83,8 +100,8 @@ export async function createStudent(req: Request, res: Response) {
       data: {
         fullName: fullName.trim(),
         classId,
-        parentEmail: parentEmail || null,
         parentPhone: parentPhone || null,
+        ...contact,
         monthlyTuitionFee: fee,
       },
       include: { class: true },
@@ -101,7 +118,7 @@ export async function createStudent(req: Request, res: Response) {
 export async function updateStudent(req: Request, res: Response) {
   const userId = req.ownerId!;
   const { id } = req.params;
-  const { fullName, classId, parentEmail, parentPhone, monthlyTuitionFee, active } = req.body ?? {};
+  const { fullName, classId, parentPhone, monthlyTuitionFee, active } = req.body ?? {};
 
   const existing = await prisma.student.findFirst({
     where: { id, class: { userId } },
@@ -123,8 +140,11 @@ export async function updateStudent(req: Request, res: Response) {
     await assertClassOwnership(classId, userId);
     data.classId = classId;
   }
-  if (parentEmail !== undefined) data.parentEmail = parentEmail || null;
   if (parentPhone !== undefined) data.parentPhone = parentPhone || null;
+  const body = req.body ?? {};
+  if (body.parentContactName !== undefined || body.parentFacebook !== undefined || body.parentZalo !== undefined) {
+    Object.assign(data, parseParentContact(body));
+  }
   if (monthlyTuitionFee !== undefined) {
     const fee = Number(monthlyTuitionFee);
     if (!Number.isFinite(fee) || fee <= 0) {
@@ -211,8 +231,10 @@ export async function importStudents(req: Request, res: Response) {
           data: {
             fullName: row.fullName,
             classId: targetClassId as string,
-            parentEmail: row.parentEmail,
             parentPhone: row.parentPhone,
+            parentContactName: row.parentContactName,
+            parentFacebook: row.parentFacebook,
+            parentZalo: row.parentZalo,
             monthlyTuitionFee: row.monthlyTuitionFee,
           },
         });
@@ -248,8 +270,10 @@ export async function exportStudents(req: Request, res: Response) {
     students.map((s) => ({
       fullName: s.fullName,
       className: s.class.name,
-      parentEmail: s.parentEmail,
       parentPhone: s.parentPhone,
+      parentContactName: s.parentContactName,
+      parentFacebook: s.parentFacebook,
+      parentZalo: s.parentZalo,
       monthlyTuitionFee: toNumber(s.monthlyTuitionFee),
       active: s.active,
     }))
