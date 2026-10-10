@@ -105,7 +105,11 @@ function sizeSpanIn(node: Node, root: HTMLElement): HTMLElement | null {
 function sizeAtSelection(): number | null {
   const sel = window.getSelection();
   if (!sel || sel.rangeCount === 0) return null;
-  const node = sel.getRangeAt(0).startContainer;
+  const range = sel.getRangeAt(0);
+  // After a size change the selection starts *before* the new span (container = its parent),
+  // so look at the node right after the start offset.
+  let node: Node = range.startContainer;
+  if (node.nodeType === Node.ELEMENT_NODE && !range.collapsed) node = node.childNodes[range.startOffset] ?? node;
   const root = editableRoot(node);
   if (!root) return null;
   const span = sizeSpanIn(node, root);
