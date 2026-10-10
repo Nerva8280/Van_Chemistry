@@ -16,6 +16,9 @@ interface ExamPaperProps {
   onOption?: (q: ResolvedQuestion, optionId: string, html: string) => void;
   onShortAnswer?: (q: ResolvedQuestion, value: string) => void;
   onClearOverride?: (q: ResolvedQuestion) => void;
+  /** Sửa phần đầu đề / tiêu đề phần (dùng chung cho mọi mã đề). */
+  onHeader?: (index: number, html: string) => void;
+  onSectionTitle?: (sectionId: string, html: string) => void;
 }
 
 /** Trình bày một mã đề đúng như khi in. */
@@ -29,6 +32,8 @@ export default function ExamPaper({
   onOption,
   onShortAnswer,
   onClearOverride,
+  onHeader,
+  onSectionTitle,
 }: ExamPaperProps) {
   const sections = resolveVersion(doc, version);
   const hasCode = headerHasCode(doc.headerHtml);
@@ -36,15 +41,28 @@ export default function ExamPaper({
   return (
     <div className="ex-paper">
       <div className="ex-header">
-        {doc.headerHtml.map((h, i) => (
-          <SafeHtml key={i} as="div" html={applyCode(h, code)} />
-        ))}
+        {doc.headerHtml.map((h, i) =>
+          editable && onHeader ? (
+            <EditableHtml key={i} html={applyCode(h, code)} onChange={(html) => onHeader(i, html)} />
+          ) : (
+            <SafeHtml key={i} as="div" html={applyCode(h, code)} />
+          )
+        )}
         {!hasCode && <div className="ex-code-line">Mã đề: {code}</div>}
       </div>
 
       {sections.map((sec) => (
         <div key={sec.id} className="ex-section">
-          {sec.titleHtml && <SafeHtml as="div" className="ex-section-title" html={sec.titleHtml} />}
+          {sec.titleHtml !== null &&
+            (editable && onSectionTitle ? (
+              <EditableHtml
+                className="ex-section-title"
+                html={sec.titleHtml}
+                onChange={(html) => onSectionTitle(sec.id, html)}
+              />
+            ) : (
+              sec.titleHtml && <SafeHtml as="div" className="ex-section-title" html={sec.titleHtml} />
+            ))}
           {sec.questions.map((q, qi) => {
             const num = qi + 1;
             const cols = sec.kind === 'mcq' ? optionColumns(q.options.map((o) => o.html)) : 1;

@@ -2,7 +2,7 @@ import '../../exam/exam.css';
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { ExamData } from '../../exam/types';
-import { ResolvedQuestion, reshuffleVersion, setVersionOverride } from '../../exam/versions';
+import { ResolvedQuestion, reshuffleVersion, restoreCode, setVersionOverride } from '../../exam/versions';
 import { sanitizeHtml } from '../../exam/sanitize';
 import ExamPaper from './ExamPaper';
 import FormatToolbar from './FormatToolbar';
@@ -68,6 +68,20 @@ export default function VersionsStep({ data, update, onPrint, onGoGenerate }: Ve
     );
   }
 
+  function onHeader(i: number, html: string) {
+    update((d) => ({
+      ...d,
+      doc: { ...d.doc, headerHtml: d.doc.headerHtml.map((h, j) => (j === i ? restoreCode(html, h) : h)) },
+    }));
+  }
+
+  function onSectionTitle(sectionId: string, html: string) {
+    update((d) => ({
+      ...d,
+      doc: { ...d.doc, sections: d.doc.sections.map((s) => (s.id === sectionId ? { ...s, titleHtml: html } : s)) },
+    }));
+  }
+
   function onClearOverride(q: ResolvedQuestion) {
     update((d) => ({
       ...d,
@@ -127,6 +141,10 @@ export default function VersionsStep({ data, update, onPrint, onGoGenerate }: Ve
         liệu khác). Muốn sửa cho mọi mã đề, hãy sửa ở bước 1.
         {overrideCount > 0 && ` Mã đề này có ${overrideCount} câu đã sửa riêng.`}
       </p>
+      <p className="text-sm text-slate-500">
+        Riêng <b>phần đầu đề</b> và <b>tiêu đề các phần</b> dùng chung cho mọi mã đề: sửa ở đây sẽ áp dụng cho tất cả mã
+        đề (số mã đề vẫn tự đổi theo từng đề).
+      </p>
 
       <FormatToolbar />
 
@@ -142,6 +160,8 @@ export default function VersionsStep({ data, update, onPrint, onGoGenerate }: Ve
             onOption={onOption}
             onShortAnswer={onShortAnswer}
             onClearOverride={onClearOverride}
+            onHeader={onHeader}
+            onSectionTitle={onSectionTitle}
           />
         </div>
       </div>

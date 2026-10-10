@@ -264,6 +264,16 @@ export function applyCode(html: string, code: string): string {
   return html.replace(CODE_SPAN_RE, (_m, open: string) => open + safe);
 }
 
+/**
+ * A header line edited on one version's page shows that version's code; before saving it as the
+ * shared header, put back the code text the stored line had so other pages keep working the same.
+ */
+export function restoreCode(editedHtml: string, storedHtml: string): string {
+  const stored = storedHtml.match(CODE_SPAN_RE);
+  if (!stored) return editedHtml;
+  return editedHtml.replace(CODE_SPAN_RE, (_m, open: string) => open + stored[2]);
+}
+
 // ---------------------------------------------------------------------------
 // Sửa riêng theo mã đề
 
