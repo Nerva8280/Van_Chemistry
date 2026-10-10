@@ -87,6 +87,93 @@ function toggleScript(tag: Script) {
   root.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
+/** Cỡ chữ (pt) cho chọn; 12 là cỡ chuẩn của đề nên không cần bọc thẻ. */
+export const FONT_SIZES = [10, 11, 12, 13, 14, 16, 18, 20];
+const DEFAULT_SIZE = 12;
+const FS_CLASS = /^ex-fs-\d+$/;
+
+function sizeSpanIn(node: Node, root: HTMLElement): HTMLElement | null {
+  let el: HTMLElement | null = node instanceof HTMLElement ? node : node.parentElement;
+  while (el && el !== root) {
+    if (el.tagName === 'SPAN' && Array.from(el.classList).some((c) => FS_CLASS.test(c))) return el;
+    el = el.parentElement;
+  }
+  return null;
+}
+
+/** Cỡ chữ (pt) tại đầu vùng chọn, để hiển thị trên nút. */
+function sizeAtSelection(): number | null {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return null;
+  const node = sel.getRangeAt(0).startContainer;
+  const root = editableRoot(node);
+  if (!root) return null;
+  const span = sizeSpanIn(node, root);
+  const cls = span && Array.from(span.classList).find((c) => FS_CLASS.test(c));
+  return cls ? Number(cls.slice(6)) : DEFAULT_SIZE;
+}
+
+/**
+ * Đặt cỡ chữ cho vùng đang bôi đen: bỏ mọi cỡ cũ bên trong, tách vùng chọn ra khỏi thẻ cỡ chữ
+ * đang bao nó (giống chỉ số dưới/trên), rồi bọc lại bằng <span class="ex-fs-N"> nếu không phải cỡ chuẩn.
+ * Lưu bằng class vì bộ làm sạch HTML bỏ thuộc tính style.
+ */
+function setFontSize(size: number) {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return false;
+  const range = sel.getRangeAt(0);
+  const root = editableRoot(range.commonAncestorContainer);
+  if (!root) return false;
+
+  const content = range.extractContents();
+  content.querySelectorAll('span').forEach((el) => {
+    const keep = Array.from(el.classList).filter((c) => !FS_CLASS.test(c));
+    if (keep.length === el.classList.length) return;
+    if (keep.length) el.className = keep.join(' ');
+    else el.replaceWith(...Array.from(el.childNodes));
+  });
+
+  for (let outer = sizeSpanIn(range.startContainer, root); outer; outer = sizeSpanIn(range.startContainer, root)) {
+    const tail = document.createRange();
+    tail.setStart(range.startContainer, range.startOffset);
+    tail.setEnd(outer, outer.childNodes.length);
+    const rest = tail.extractContents();
+    const after = outer.cloneNode(false) as HTMLElement;
+    after.append(rest);
+    outer.after(after);
+    if (!after.textContent) after.remove();
+    range.setStartAfter(outer);
+    range.collapse(true);
+    if (!outer.textContent) outer.remove();
+  }
+
+  let inserted: Node = content;
+  if (size !== DEFAULT_SIZE) {
+    const wrap = document.createElement('span');
+    wrap.className = `ex-fs-${size}`;
+    wrap.append(content);
+    inserted = wrap;
+  }
+  const first = inserted instanceof DocumentFragment ? inserted.firstChild : inserted;
+  const last = inserted instanceof DocumentFragment ? inserted.lastChild : inserted;
+  range.insertNode(inserted);
+
+  root.querySelectorAll('span').forEach((el) => {
+    if (!el.textContent && !el.querySelector('img, br')) el.remove();
+  });
+  root.normalize();
+
+  if (first && last && root.contains(first) && root.contains(last)) {
+    const next = document.createRange();
+    next.setStartBefore(first);
+    next.setEndAfter(last);
+    sel.removeAllRanges();
+    sel.addRange(next);
+  }
+  root.dispatchEvent(new Event('input', { bubbles: true }));
+  return true;
+}
+
 function runCommand(cmd: 'bold' | 'italic') {
   document.execCommand('styleWithCSS', false, 'false');
   document.execCommand(cmd);
@@ -233,13 +320,18 @@ export default function FormatToolbar() {
     'inline-flex h-8 min-w-[2.25rem] items-center justify-center rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-700 hover:bg-slate-50 [@media(pointer:coarse)]:h-10 [@media(pointer:coarse)]:min-w-[2.5rem]';
   const [inTable, setInTable] = useState(false);
   const [picker, setPicker] = useState(false);
+  const [sizeOpen, setSizeOpen] = useState(false);
+  const [currentSize, setCurrentSize] = useState<number | null>(null);
   const [rows, setRows] = useState(3);
   const [cols, setCols] = useState(3);
   const [hint, setHint] = useState('');
   const savedRange = useRef<Range | null>(null);
 
   useEffect(() => {
-    const onChange = () => setInTable(!!currentCell());
+    const onChange = () => {
+      setInTable(!!currentCell());
+      setCurrentSize(sizeAtSelection());
+    };
     document.addEventListener('selectionchange', onChange);
     return () => document.removeEventListener('selectionchange', onChange);
   }, []);
@@ -287,6 +379,14 @@ export default function FormatToolbar() {
   };
   const sizes = Array.from({ length: 10 }, (_, i) => i + 1);
 
+  function applySize(size: number) {
+    if (!setFontSize(size)) {
+      setHint('Hãy bôi đen chữ cần đổi cỡ trước.');
+      return;
+    }
+    setCurrentSize(size);
+  }
+
   return (
     <div className="sticky top-0 z-10 flex flex-col gap-2 rounded-lg bg-slate-100/95 px-3 py-2 text-xs text-slate-600 backdrop-blur">
       <div className="flex flex-wrap items-center gap-2">
@@ -302,6 +402,18 @@ export default function FormatToolbar() {
         </button>
         <button type="button" className={`${btn} italic`} title="In nghiêng" onMouseDown={press(() => runCommand('italic'))}>
           N
+        </button>
+        <button
+          type="button"
+          className={`${btn} gap-1 ${sizeOpen ? 'border-primary-400 bg-primary-50' : ''}`}
+          title="Đổi cỡ chữ của phần đang bôi đen"
+          aria-expanded={sizeOpen}
+          onMouseDown={press(() => setSizeOpen((v) => !v))}
+        >
+          <span className="font-serif">
+            A<span className="text-[0.7em]">A</span>
+          </span>
+          Cỡ chữ{currentSize ? ` ${currentSize}` : ''}
         </button>
         <span className="mx-1 h-6 w-px bg-slate-300" aria-hidden="true" />
         <button type="button" className={btn} title="Căn trái" aria-label="Căn trái" onMouseDown={press(() => align('left'))}>
@@ -332,6 +444,24 @@ export default function FormatToolbar() {
         </button>
         <span className="hidden sm:inline">Bấm lại lần nữa để bỏ định dạng.</span>
       </div>
+
+      {sizeOpen && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span>Cỡ chữ (pt):</span>
+          {FONT_SIZES.map((n) => (
+            <button
+              key={n}
+              type="button"
+              className={`${btn} ${currentSize === n ? 'border-primary-400 bg-primary-50 font-semibold text-primary-700' : ''}`}
+              title={n === DEFAULT_SIZE ? 'Cỡ chuẩn của đề (12)' : `Cỡ ${n}`}
+              onMouseDown={press(() => applySize(n))}
+            >
+              {n}
+              {n === DEFAULT_SIZE && <span className="ml-1 text-[11px] font-normal text-slate-500">chuẩn</span>}
+            </button>
+          ))}
+        </div>
+      )}
 
       {picker && (
         <div className="flex flex-wrap items-center gap-2">

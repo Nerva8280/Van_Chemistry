@@ -22,6 +22,14 @@
 .ex-paper strong {
   font-weight: 700;
 }
+/* Cỡ chữ chọn trên thanh định dạng (pt, giống Word; cỡ chuẩn của đề là 12pt). */
+.ex-fs-10 { font-size: 10pt; }
+.ex-fs-11 { font-size: 11pt; }
+.ex-fs-13 { font-size: 13pt; }
+.ex-fs-14 { font-size: 14pt; }
+.ex-fs-16 { font-size: 16pt; }
+.ex-fs-18 { font-size: 18pt; }
+.ex-fs-20 { font-size: 20pt; }
 .ex-center {
   text-align: center;
 }
