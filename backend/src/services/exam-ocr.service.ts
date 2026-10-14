@@ -264,7 +264,8 @@ export const MSG_BAD_JSON = "AI trả về kết quả không đọc được. V
 export const MSG_BLOCKED =
   "AI từ chối đọc các ảnh này (bị bộ lọc an toàn chặn hoặc không có kết quả). Hãy chụp lại chỉ phần đề thi rồi thử lại.";
 export const MSG_TOO_LONG = "Đề quá dài để AI đọc trong một lần. Hãy chia thành nhiều lần, mỗi lần ít ảnh hơn.";
-export const MSG_UNAVAILABLE = "Dịch vụ AI đang bận. Vui lòng thử lại sau ít phút.";
+export const MSG_UNAVAILABLE =
+  "AI đọc ảnh của Google đang quá tải (không phải lỗi của ứng dụng). Vui lòng thử lại sau vài phút.";
 export const MSG_NETWORK = "Không kết nối được dịch vụ AI. Vui lòng thử lại sau.";
 
 export interface GeminiOptions {
@@ -362,12 +363,12 @@ export async function ocrWithGemini(images: OcrImage[], opts: GeminiOptions): Pr
   return { result: normalizeResult(parsed, images.length), model: opts.model };
 }
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 /**
- * The free tier often answers 503 "high demand" for a few seconds, and Google retires models
- * for new keys (404). Retry a busy model briefly, then fall back to the next one, all within
- * one overall deadline so the browser's request doesn't give up first.
+ * Each model is tried once. A model that is busy (503), out of its own free daily quota (429) or
+ * retired for new keys (404) answers within seconds, so the next model is tried straight away;
+ * waiting and retrying the same model only made the teacher wait up to two minutes and spent
+ * more of the 20-requests-per-day free quota. A timeout stops at once: another model would need
+ * another full read. Everything stays inside one deadline so the browser's request ends first.
  */
 export async function ocrWithFallback(
   images: OcrImage[],
@@ -377,19 +378,16 @@ export async function ocrWithFallback(
   const models = [...new Set(opts.models.filter(Boolean))];
   let lastError: unknown = new AppError(MSG_UNAVAILABLE, 503);
   for (const model of models) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const remaining = deadline - Date.now();
-      if (remaining < 15_000) throw lastError;
-      try {
-        return await ocrWithGemini(images, { ...opts, model, timeoutMs: Math.min(GEMINI_TIMEOUT_MS, remaining) });
-      } catch (err) {
-        lastError = err;
-        const busy = err instanceof AppError && err.message === MSG_UNAVAILABLE;
-        const retired = err instanceof AppError && /\(mã 404\)/.test(err.message);
-        if (retired) break;
-        if (!busy) throw err;
-        await sleep(attempt === 0 ? 3000 : 6000);
-      }
+    const remaining = deadline - Date.now();
+    if (remaining < 15_000) break;
+    try {
+      return await ocrWithGemini(images, { ...opts, model, timeoutMs: Math.min(GEMINI_TIMEOUT_MS, remaining) });
+    } catch (err) {
+      lastError = err;
+      const tryNext =
+        err instanceof AppError &&
+        (err.message === MSG_UNAVAILABLE || err.message === MSG_QUOTA || /\(mã 404\)/.test(err.message));
+      if (!tryNext) throw err;
     }
   }
   throw lastError;
