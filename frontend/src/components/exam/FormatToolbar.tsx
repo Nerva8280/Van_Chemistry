@@ -87,9 +87,9 @@ function toggleScript(tag: Script) {
   root.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
-/** Cỡ chữ (pt) cho chọn; 12 là cỡ chuẩn của đề nên không cần bọc thẻ. */
+/** Cỡ chữ (pt) cho chọn; 11 là cỡ chuẩn của đề (.ex-paper) nên không cần bọc thẻ. */
 export const FONT_SIZES = [10, 11, 12, 13, 14, 16, 18, 20];
-const DEFAULT_SIZE = 12;
+const DEFAULT_SIZE = 11;
 const FS_CLASS = /^ex-fs-\d+$/;
 
 function sizeSpanIn(node: Node, root: HTMLElement): HTMLElement | null {
@@ -457,7 +457,7 @@ export default function FormatToolbar() {
               key={n}
               type="button"
               className={`${btn} ${currentSize === n ? 'border-primary-400 bg-primary-50 font-semibold text-primary-700' : ''}`}
-              title={n === DEFAULT_SIZE ? 'Cỡ chuẩn của đề (12)' : `Cỡ ${n}`}
+              title={n === DEFAULT_SIZE ? `Cỡ chuẩn của đề (${DEFAULT_SIZE})` : `Cỡ ${n}`}
               onMouseDown={press(() => applySize(n))}
             >
               {n}
