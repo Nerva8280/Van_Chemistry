@@ -17,6 +17,14 @@ export const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 export const MAX_TOTAL_BYTES = 14 * 1024 * 1024;
 export const GEMINI_TIMEOUT_MS = 100_000;
 
+/**
+ * Per-model wait, by page count. With thinking off a page reads in ~8s, so a model still silent
+ * after this long is stuck rather than working, and the next model gets the remaining time.
+ */
+export function attemptTimeoutMs(imageCount: number): number {
+  return Math.min(GEMINI_TIMEOUT_MS, 25_000 + 12_000 * Math.max(1, imageCount));
+}
+
 export interface OcrFigure {
   id: string;
   image: number;
@@ -183,6 +191,10 @@ export function buildGeminiBody(images: OcrImage[]) {
     contents: [{ role: "user", parts }],
     generationConfig: {
       temperature: 0,
+      // Copying text needs no reasoning: default "thinking" made a page take ~22s instead of ~8s
+      // with the same result, pushing multi-page exams past the timeout (measured 2026-10-26).
+      // "minimal" is accepted by 3.5-flash and 3.5-flash-lite (the latter rejects thinkingBudget: 0).
+      thinkingConfig: { thinkingLevel: "minimal" },
       // Đề 3 phần, nhiều trang có thể dài; để mặc định thì dễ bị cắt giữa chừng.
       maxOutputTokens: 65536,
       responseMimeType: "application/json",
@@ -364,11 +376,12 @@ export async function ocrWithGemini(images: OcrImage[], opts: GeminiOptions): Pr
 }
 
 /**
- * Each model is tried once. A model that is busy (503), out of its own free daily quota (429) or
- * retired for new keys (404) answers within seconds, so the next model is tried straight away;
- * waiting and retrying the same model only made the teacher wait up to two minutes and spent
- * more of the 20-requests-per-day free quota. A timeout stops at once: another model would need
- * another full read. Everything stays inside one deadline so the browser's request ends first.
+ * Each model is tried once, no waiting between tries (retrying a busy model made the teacher wait
+ * up to two minutes and spent more of the 20-requests-per-day free quota). Any failure that is
+ * about this model — busy, out of its own quota, retired, hanging past attemptTimeoutMs, rejecting
+ * a parameter, an unreadable answer — moves on to the next model. Only a bad API key or an exam too
+ * long to read stop at once, since another model would fail the same way. Everything stays inside
+ * one deadline so the browser's request ends first.
  */
 export async function ocrWithFallback(
   images: OcrImage[],
@@ -381,13 +394,15 @@ export async function ocrWithFallback(
     const remaining = deadline - Date.now();
     if (remaining < 15_000) break;
     try {
-      return await ocrWithGemini(images, { ...opts, model, timeoutMs: Math.min(GEMINI_TIMEOUT_MS, remaining) });
+      return await ocrWithGemini(images, {
+        ...opts,
+        model,
+        timeoutMs: Math.min(attemptTimeoutMs(images.length), remaining),
+      });
     } catch (err) {
       lastError = err;
-      const tryNext =
-        err instanceof AppError &&
-        (err.message === MSG_UNAVAILABLE || err.message === MSG_QUOTA || /\(mã 404\)/.test(err.message));
-      if (!tryNext) throw err;
+      const fatal = !(err instanceof AppError) || err.message === MSG_BAD_KEY || err.message === MSG_TOO_LONG;
+      if (fatal) throw err;
     }
   }
   throw lastError;
